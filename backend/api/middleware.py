@@ -2,6 +2,8 @@ import logging
 import uuid
 from time import perf_counter
 
+from providers.request_context import request_id_var
+
 logger = logging.getLogger("routecast.request")
 
 
@@ -21,7 +23,11 @@ class RequestIdMiddleware:
     def __call__(self, request):
         request.request_id = new_request_id()
         started = perf_counter()
-        response = self.get_response(request)
+        token = request_id_var.set(request.request_id)  # for log lines written inside providers
+        try:
+            response = self.get_response(request)
+        finally:
+            request_id_var.reset(token)
         response["X-Request-ID"] = request.request_id
         logger.info(
             "request request_id=%s method=%s path=%s status=%s total_ms=%.0f",

@@ -28,4 +28,9 @@ WEATHER_TIMEOUT_S = 5.0
 WEATHER_BATCH_SIZE = 50
 WEATHER_MAX_WORKERS = 4
 MAX_FORECAST_DAYS = 16
+# A 429 whose reason says "minutely" is retried after these waits (plus jitter), so
+# the extra wait stays under 10 seconds. Hourly and daily limits are not retried.
+WEATHER_RATE_LIMIT_DELAYS_S = (2.0, 5.0)
+WEATHER_RATE_LIMIT_JITTER_S = 0.5
+WEATHER_REASON_MAX_CHARS = 200
 DEFAULT_WEATHER_CACHE_TTL_S = 1800

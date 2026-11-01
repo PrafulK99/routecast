@@ -110,6 +110,56 @@ def overlap_fraction(
     return sum(is_near(point) for point in samples) / len(samples)
 
 
+def _distance_to_segment(p: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
+    (px, py), (ax, ay), (bx, by) = p, a, b
+    dx, dy = bx - ax, by - ay
+    length_sq = dx * dx + dy * dy
+    t = 0.0 if length_sq == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length_sq))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def simplify_polyline(points: list[LatLon], tolerance_miles: float, max_points: int) -> list[LatLon]:
+    """Douglas-Peucker: drop vertices closer than `tolerance_miles` to the line
+    through their neighbours, then, if more than `max_points` remain, keep only
+    the most significant ones. The first and last vertex are always kept and the
+    order is unchanged.
+
+    Distances are measured on a flat projection around the route's middle
+    latitude, which is accurate to a few percent over a continental route and
+    far inside what a 50 m display tolerance needs. Iterative, so a 13,000
+    vertex route cannot hit the recursion limit.
+    """
+    if max_points < 2:
+        raise ValueError("max_points must be at least 2")
+    count = len(points)
+    if count <= 2:
+        return list(points)
+
+    lat0 = sum(lat for lat, _ in points) / count
+    lon0 = points[0][1]
+    x_scale = math.cos(math.radians(lat0)) * MILES_PER_DEGREE
+    flat = [((lon - lon0) * x_scale, lat * MILES_PER_DEGREE) for lat, lon in points]
+
+    # importance[i] is how far vertex i stood from the line when it was chosen.
+    importance: dict[int, float] = {0: math.inf, count - 1: math.inf}
+    pending = [(0, count - 1)]
+    while pending:
+        first, last = pending.pop()
+        farthest, farthest_distance = -1, tolerance_miles
+        for i in range(first + 1, last):
+            distance = _distance_to_segment(flat[i], flat[first], flat[last])
+            if distance >= farthest_distance:
+                farthest, farthest_distance = i, distance
+        if farthest == -1:
+            continue
+        importance[farthest] = farthest_distance
+        pending.append((first, farthest))
+        pending.append((farthest, last))
+
+    kept = sorted(importance, key=lambda i: (-importance[i], i))[:max_points]
+    return [points[i] for i in sorted(kept)]
+
+
 def _sample_routes(routes: Iterable[Route], spacing_miles: float) -> list[tuple[float, float]]:
     seen = set()
     points = []

@@ -1,0 +1,790 @@
+{
+  "meta": {
+    "request_id": "00000000000000000000000000000001",
+    "interval_miles": 25,
+    "truck_duration_factor": 1.1,
+    "forecast_source": "open-meteo",
+    "warnings": []
+  },
+  "routes": [
+    {
+      "id": "route-1",
+      "label": "Route A",
+      "distance_mi": 239.3,
+      "duration_s": 15797,
+      "departure_time": "2026-11-02T14:00:00Z",
+      "arrival_time": "2026-11-02T18:23:16Z",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -100.0,
+            30.0
+          ],
+          [
+            -96.0,
+            30.0
+          ]
+        ]
+      },
+      "summary": {
+        "miles_by_level": {
+          "low": 89.3,
+          "moderate": 0.0,
+          "high": 0.0,
+          "severe": 150.0,
+          "no_travel": 0.0
+        },
+        "avg_risk": 1.88,
+        "worst_level": 3,
+        "worst_level_name": "Severe",
+        "coverage_pct": 100.0,
+        "blocked": false
+      },
+      "checkpoints": [
+        {
+          "index": 0,
+          "mile": 0.0,
+          "lat": 30.0,
+          "lon": -100.0,
+          "eta": "2026-11-02T14:00:00Z",
+          "forecast_hour": "2026-11-02T14:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 12.5,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 1,
+          "mile": 25.0,
+          "lat": 30.0,
+          "lon": -99.58219,
+          "eta": "2026-11-02T14:27:30Z",
+          "forecast_hour": "2026-11-02T14:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 2,
+          "mile": 50.0,
+          "lat": 30.0,
+          "lon": -99.16438,
+          "eta": "2026-11-02T14:55:00Z",
+          "forecast_hour": "2026-11-02T15:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 3,
+          "mile": 75.0,
+          "lat": 30.0,
+          "lon": -98.74657,
+          "eta": "2026-11-02T15:22:30Z",
+          "forecast_hour": "2026-11-02T15:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 4,
+          "mile": 100.0,
+          "lat": 30.0,
+          "lon": -98.32876,
+          "eta": "2026-11-02T15:50:00Z",
+          "forecast_hour": "2026-11-02T16:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 5,
+          "mile": 125.0,
+          "lat": 30.0,
+          "lon": -97.91095,
+          "eta": "2026-11-02T16:17:30Z",
+          "forecast_hour": "2026-11-02T16:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 6,
+          "mile": 150.0,
+          "lat": 30.0,
+          "lon": -97.49314,
+          "eta": "2026-11-02T16:45:00Z",
+          "forecast_hour": "2026-11-02T17:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 7,
+          "mile": 175.0,
+          "lat": 30.0,
+          "lon": -97.07533,
+          "eta": "2026-11-02T17:12:30Z",
+          "forecast_hour": "2026-11-02T17:00:00Z",
+          "wind_mph": 50.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 3,
+            "level_name": "Severe",
+            "factor": "wind",
+            "wind_level": 3,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 8,
+          "mile": 200.0,
+          "lat": 30.0,
+          "lon": -96.65752,
+          "eta": "2026-11-02T17:40:00Z",
+          "forecast_hour": "2026-11-02T18:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 9,
+          "mile": 225.0,
+          "lat": 30.0,
+          "lon": -96.23972,
+          "eta": "2026-11-02T18:07:30Z",
+          "forecast_hour": "2026-11-02T18:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 19.67,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 10,
+          "mile": 239.34,
+          "lat": 30.0,
+          "lon": -96.0,
+          "eta": "2026-11-02T18:23:16Z",
+          "forecast_hour": "2026-11-02T18:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 7.17,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "route-2",
+      "label": "Route B",
+      "distance_mi": 275.3,
+      "duration_s": 18776,
+      "departure_time": "2026-11-02T14:00:00Z",
+      "arrival_time": "2026-11-02T19:12:56Z",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -100.0,
+            30.0
+          ],
+          [
+            -98.0,
+            31.0
+          ],
+          [
+            -96.0,
+            30.0
+          ]
+        ]
+      },
+      "summary": {
+        "miles_by_level": {
+          "low": 275.3,
+          "moderate": 0.0,
+          "high": 0.0,
+          "severe": 0.0,
+          "no_travel": 0.0
+        },
+        "avg_risk": 0.0,
+        "worst_level": 0,
+        "worst_level_name": "Low",
+        "coverage_pct": 100.0,
+        "blocked": false
+      },
+      "checkpoints": [
+        {
+          "index": 0,
+          "mile": 0.0,
+          "lat": 30.0,
+          "lon": -100.0,
+          "eta": "2026-11-02T14:00:00Z",
+          "forecast_hour": "2026-11-02T14:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 12.5,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 1,
+          "mile": 25.0,
+          "lat": 30.18161,
+          "lon": -99.63678,
+          "eta": "2026-11-02T14:28:25Z",
+          "forecast_hour": "2026-11-02T14:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 2,
+          "mile": 50.0,
+          "lat": 30.36322,
+          "lon": -99.27356,
+          "eta": "2026-11-02T14:56:50Z",
+          "forecast_hour": "2026-11-02T15:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 3,
+          "mile": 75.0,
+          "lat": 30.54483,
+          "lon": -98.91034,
+          "eta": "2026-11-02T15:25:15Z",
+          "forecast_hour": "2026-11-02T15:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 4,
+          "mile": 100.0,
+          "lat": 30.72644,
+          "lon": -98.54711,
+          "eta": "2026-11-02T15:53:40Z",
+          "forecast_hour": "2026-11-02T16:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 5,
+          "mile": 125.0,
+          "lat": 30.90805,
+          "lon": -98.18389,
+          "eta": "2026-11-02T16:22:05Z",
+          "forecast_hour": "2026-11-02T16:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 6,
+          "mile": 150.0,
+          "lat": 30.91034,
+          "lon": -97.82067,
+          "eta": "2026-11-02T16:50:30Z",
+          "forecast_hour": "2026-11-02T17:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 7,
+          "mile": 175.0,
+          "lat": 30.72872,
+          "lon": -97.45745,
+          "eta": "2026-11-02T17:18:55Z",
+          "forecast_hour": "2026-11-02T17:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 8,
+          "mile": 200.0,
+          "lat": 30.54711,
+          "lon": -97.09423,
+          "eta": "2026-11-02T17:47:20Z",
+          "forecast_hour": "2026-11-02T18:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 9,
+          "mile": 225.0,
+          "lat": 30.3655,
+          "lon": -96.73101,
+          "eta": "2026-11-02T18:15:45Z",
+          "forecast_hour": "2026-11-02T18:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 10,
+          "mile": 250.0,
+          "lat": 30.18389,
+          "lon": -96.36778,
+          "eta": "2026-11-02T18:44:10Z",
+          "forecast_hour": "2026-11-02T19:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 25.0,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 11,
+          "mile": 275.0,
+          "lat": 30.00228,
+          "lon": -96.00456,
+          "eta": "2026-11-02T19:12:35Z",
+          "forecast_hour": "2026-11-02T19:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 12.66,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        },
+        {
+          "index": 12,
+          "mile": 275.31,
+          "lat": 30.0,
+          "lon": -96.0,
+          "eta": "2026-11-02T19:12:56Z",
+          "forecast_hour": "2026-11-02T19:00:00Z",
+          "wind_mph": 5.0,
+          "rain_in_hr": 0.0,
+          "snow_in_hr": 0.0,
+          "segment_mi": 0.16,
+          "status": "ok",
+          "risk": {
+            "level": 0,
+            "level_name": "Low",
+            "factor": "wind",
+            "wind_level": 0,
+            "rain_level": 0,
+            "snow_level": 0,
+            "load_rule_applied": false
+          }
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "route_id": "route-2",
+    "reasons": [
+      "Route B has 0 Severe miles against 150 on Route A, and is 50 minutes slower."
+    ],
+    "all_blocked": false,
+    "ranking": [
+      {
+        "rank": 1,
+        "route_id": "route-2",
+        "sort_key": {
+          "no_travel_mi": 0.0,
+          "severe_mi": 0.0,
+          "high_mi": 0.0,
+          "avg_risk": 0.0,
+          "duration_s": 18776
+        }
+      },
+      {
+        "rank": 2,
+        "route_id": "route-1",
+        "sort_key": {
+          "no_travel_mi": 0.0,
+          "severe_mi": 150.0,
+          "high_mi": 0.0,
+          "avg_risk": 1.88,
+          "duration_s": 15797
+        }
+      }
+    ]
+  },
+  "corridor_points": [
+    [
+      30.0,
+      -100.0
+    ],
+    [
+      30.0,
+      -99.74931
+    ],
+    [
+      30.0,
+      -99.49863
+    ],
+    [
+      30.0,
+      -99.24794
+    ],
+    [
+      30.0,
+      -98.99726
+    ],
+    [
+      30.0,
+      -98.74657
+    ],
+    [
+      30.0,
+      -98.49589
+    ],
+    [
+      30.0,
+      -98.2452
+    ],
+    [
+      30.0,
+      -97.99451
+    ],
+    [
+      30.0,
+      -97.74383
+    ],
+    [
+      30.0,
+      -97.49314
+    ],
+    [
+      30.0,
+      -97.24246
+    ],
+    [
+      30.0,
+      -96.99177
+    ],
+    [
+      30.0,
+      -96.74109
+    ],
+    [
+      30.0,
+      -96.4904
+    ],
+    [
+      30.0,
+      -96.23972
+    ],
+    [
+      30.0,
+      -96.0
+    ],
+    [
+      30.10897,
+      -99.78207
+    ],
+    [
+      30.21793,
+      -99.56413
+    ],
+    [
+      30.3269,
+      -99.3462
+    ],
+    [
+      30.43587,
+      -99.12827
+    ],
+    [
+      30.54483,
+      -98.91034
+    ],
+    [
+      30.6538,
+      -98.6924
+    ],
+    [
+      30.76277,
+      -98.47447
+    ],
+    [
+      30.87173,
+      -98.25654
+    ],
+    [
+      30.9807,
+      -98.0386
+    ],
+    [
+      30.91034,
+      -97.82067
+    ],
+    [
+      30.80137,
+      -97.60274
+    ],
+    [
+      30.6924,
+      -97.38481
+    ],
+    [
+      30.58344,
+      -97.16687
+    ],
+    [
+      30.47447,
+      -96.94894
+    ],
+    [
+      30.3655,
+      -96.73101
+    ],
+    [
+      30.25654,
+      -96.51307
+    ],
+    [
+      30.14757,
+      -96.29514
+    ],
+    [
+      30.0386,
+      -96.07721
+    ]
+  ]
+}

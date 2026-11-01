@@ -1,3 +1,4 @@
+import math
 import time
 
 import pytest
@@ -11,6 +12,7 @@ from domain.geo import (
     offset_point,
     overlap_fraction,
     perpendicular_offsets,
+    simplify_polyline,
 )
 from domain.models import Route
 
@@ -92,11 +94,11 @@ def test_spacing_grows_until_the_result_fits_the_cap():
     assert points[0] == pytest.approx((30.0, -97.0))
 
 
-def test_default_cap_is_200():
+def test_default_cap_is_120():
     # 5000 miles at 15 miles is 335 distinct cells; the default cap forces it down.
     points = corridor_points([straight_route(5000, vertices=2)])
 
-    assert len(points) <= 200
+    assert len(points) <= 120
 
 
 def test_unreachable_cap_truncates_instead_of_looping():
@@ -194,3 +196,91 @@ def test_overlap_is_fast_on_dense_geometry():
 
     assert overlap_fraction(a, b, 5, 1) == 1.0
     assert time.perf_counter() - started < 5
+
+
+# --- simplify_polyline ----------------------------------------------------------
+
+MILE = 1 / 69.09  # degrees of latitude per mile
+
+
+def north_line_with_kink(kink_miles):
+    """Five vertices heading north; the middle one is pushed east by `kink_miles`."""
+    east = kink_miles / (69.09 * 0.866)  # degrees of longitude at latitude 30
+    return [(30.0, -97.0), (30.1, -97.0), (30.2, -97.0 + east), (30.3, -97.0), (30.4, -97.0)]
+
+
+def test_collinear_vertices_are_dropped():
+    line = [(30.0 + 0.1 * i, -97.0) for i in range(20)]
+
+    assert simplify_polyline(line, 0.031, 2000) == [line[0], line[-1]]
+
+
+def test_a_kink_below_the_tolerance_is_dropped_and_one_above_is_kept():
+    small = north_line_with_kink(0.02)
+    big = north_line_with_kink(0.05)
+
+    assert simplify_polyline(small, 0.031, 2000) == [small[0], small[-1]]
+    assert simplify_polyline(big, 0.031, 2000) == [big[0], big[2], big[-1]]
+
+
+def test_endpoints_are_always_kept():
+    line = north_line_with_kink(0.5)
+
+    result = simplify_polyline(line, 100.0, 2000)
+
+    assert result == [line[0], line[-1]]
+
+
+def test_short_inputs_are_returned_unchanged():
+    assert simplify_polyline([], 0.031, 10) == []
+    assert simplify_polyline([(1.0, 2.0)], 0.031, 10) == [(1.0, 2.0)]
+    assert simplify_polyline([(1.0, 2.0), (3.0, 4.0)], 0.031, 10) == [(1.0, 2.0), (3.0, 4.0)]
+
+
+def test_the_cap_keeps_the_most_significant_vertices_in_order():
+    offsets = [0.2, 0.9, 0.4, 0.8, 0.3, 0.7, 0.5, 0.6, 0.35]  # miles east of the straight line
+    line = [(30.0, -97.0)] + [
+        (30.0 + 0.1 * (i + 1), -97.0 + miles / (69.09 * 0.866)) for i, miles in enumerate(offsets)
+    ] + [(31.0, -97.0)]
+
+    result = simplify_polyline(line, 0.031, 4)
+
+    assert len(result) == 4
+    assert result[0] == line[0] and result[-1] == line[-1]
+    assert line[2] in result  # the 0.9-mile bulge is the most significant vertex
+    assert [line.index(p) for p in result] == sorted(line.index(p) for p in result)
+
+
+def test_simplification_is_deterministic_and_never_invents_points():
+    line = [(30.0 + 0.01 * i, -97.0 + 0.003 * ((i * 7) % 5)) for i in range(300)]
+
+    first = simplify_polyline(line, 0.031, 50)
+
+    assert first == simplify_polyline(line, 0.031, 50)
+    assert set(first) <= set(line)
+
+
+def test_zero_length_segments_do_not_break_it():
+    line = [(30.0, -97.0), (30.0, -97.0), (30.1, -97.2), (30.1, -97.2), (30.2, -97.0)]
+
+    result = simplify_polyline(line, 0.031, 2000)
+
+    assert result[0] == line[0] and result[-1] == line[-1]
+    assert (30.1, -97.2) in result
+
+
+def test_max_points_below_two_is_rejected():
+    with pytest.raises(ValueError):
+        simplify_polyline([(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)], 0.031, 1)
+
+
+def test_a_dense_route_is_simplified_quickly_under_the_cap():
+    # 700 miles with 13,000 vertices and a gentle wobble, like a real Mapbox route.
+    line = [(30.0 + 10.0 * i / 13000, -97.0 + 0.002 * math.sin(i / 40)) for i in range(13001)]
+    started = time.perf_counter()
+
+    result = simplify_polyline(line, 0.031, 2000)
+
+    assert time.perf_counter() - started < 3
+    assert 2 < len(result) <= 2000
+    assert result[0] == line[0] and result[-1] == line[-1]

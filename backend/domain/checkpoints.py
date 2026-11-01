@@ -39,14 +39,17 @@ def sample_miles(total_miles: float, step_miles: float) -> list[float]:
     return miles
 
 
-def choose_interval(total_miles: float, requested: int) -> int:
+def choose_interval(
+    total_miles: float, requested: int, max_checkpoints: int = MAX_CHECKPOINTS_PER_ROUTE
+) -> int:
     """The requested interval, or the next larger allowed one when it would give
-    more than the maximum number of checkpoints. The caller reports a change."""
+    more than `max_checkpoints`. The caller reports a change, and checks whether
+    even the largest interval is still too many (it is returned in that case)."""
     if requested not in ALLOWED_INTERVALS_MILES:
         raise ValueError(f"interval must be one of {ALLOWED_INTERVALS_MILES}, got {requested!r}")
     larger = [i for i in ALLOWED_INTERVALS_MILES if i >= requested]
     for interval in larger:
-        if len(sample_miles(total_miles, interval)) <= MAX_CHECKPOINTS_PER_ROUTE:
+        if len(sample_miles(total_miles, interval)) <= max_checkpoints:
             return interval
     return larger[-1]
 

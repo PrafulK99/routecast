@@ -5,3 +5,4 @@ python-dotenv==1.2.4
 gunicorn==26.2.0
 pytest==9.2.0
 pytest-django==4.14.0
+hypothesis==6.170.14

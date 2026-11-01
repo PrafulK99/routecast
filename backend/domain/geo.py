@@ -1,5 +1,9 @@
-"""Grid cells and corridor points shared by the weather cache and the heatmap."""
+"""Grid cells, corridor points and the route geometry used by the providers.
 
+Points are (lat, lon) pairs. The antimeridian and the poles are not supported.
+"""
+
+import math
 from typing import Iterable
 
 from .checkpoints import interpolate_at_mile, sample_miles
@@ -11,11 +15,99 @@ from .constants import (
 )
 from .models import Route
 
+LatLon = tuple[float, float]
+
+EARTH_RADIUS_MILES = 3958.7613
+MILES_PER_DEGREE = math.radians(1) * EARTH_RADIUS_MILES
+# overlap_fraction measures against the other route resampled this finely
+# (as a fraction of the tolerance), so the sampling error stays under a tenth of it.
+_OVERLAP_RESAMPLE_FRACTION = 0.25
+
 
 def grid_cell(lat: float, lon: float) -> tuple[float, float]:
     """Round to the 0.1 degree grid so nearby points share one weather lookup."""
     # Adding 0.0 turns -0.0 into 0.0 so the cell prints and hashes one way.
     return round(lat, GRID_DECIMALS) + 0.0, round(lon, GRID_DECIMALS) + 0.0
+
+
+def haversine_miles(a: LatLon, b: LatLon) -> float:
+    """Great-circle distance in miles."""
+    lat1, lon1, lat2, lon2 = map(math.radians, (*a, *b))
+    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    return 2 * EARTH_RADIUS_MILES * math.asin(min(1.0, math.sqrt(h)))
+
+
+def bearing_degrees(a: LatLon, b: LatLon) -> float:
+    """Initial compass bearing from a to b, 0 (north) to 360, clockwise."""
+    lat1, lon1, lat2, lon2 = map(math.radians, (*a, *b))
+    dlon = lon2 - lon1
+    y = math.sin(dlon) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    return math.degrees(math.atan2(y, x)) % 360
+
+
+def offset_point(point: LatLon, bearing: float, miles: float) -> LatLon:
+    """The point reached by travelling `miles` from `point` on a compass bearing."""
+    lat1, lon1 = map(math.radians, point)
+    theta = math.radians(bearing)
+    delta = miles / EARTH_RADIUS_MILES
+    lat2 = math.asin(
+        math.sin(lat1) * math.cos(delta) + math.cos(lat1) * math.sin(delta) * math.cos(theta)
+    )
+    lon2 = lon1 + math.atan2(
+        math.sin(theta) * math.sin(delta) * math.cos(lat1),
+        math.cos(delta) - math.sin(lat1) * math.sin(lat2),
+    )
+    return math.degrees(lat2), (math.degrees(lon2) + 540) % 360 - 180
+
+
+def perpendicular_offsets(
+    route: Route, fraction: float, miles: float, window_miles: float = 2.0
+) -> tuple[LatLon, LatLon]:
+    """(left, right) points `miles` to either side of the route at `fraction` of
+    its length. The local direction is taken over `window_miles` either side, so
+    a wiggle in the geometry does not tilt the offset."""
+    mile = fraction * route.distance_mi
+    lat, lon, _ = interpolate_at_mile(route, mile)
+    behind = interpolate_at_mile(route, mile - window_miles)[:2]
+    ahead = interpolate_at_mile(route, mile + window_miles)[:2]
+    heading = bearing_degrees(behind, ahead)
+    return (
+        offset_point((lat, lon), heading - 90, miles),
+        offset_point((lat, lon), heading + 90, miles),
+    )
+
+
+def _projected(point: LatLon) -> tuple[float, float]:
+    """Local flat-earth miles (x east, y north); only meant for distances of a few miles."""
+    lat, lon = point
+    return lon * math.cos(math.radians(lat)) * MILES_PER_DEGREE, lat * MILES_PER_DEGREE
+
+
+def overlap_fraction(
+    route: Route, other: Route, spacing_miles: float, tolerance_miles: float
+) -> float:
+    """Share of `route`, sampled every `spacing_miles`, within `tolerance_miles`
+    of `other`: 1.0 for the same road, 0.0 for routes that never come close."""
+    step = tolerance_miles * _OVERLAP_RESAMPLE_FRACTION
+    buckets: dict[tuple[int, int], list[LatLon]] = {}
+    for mile in sample_miles(other.distance_mi, step):
+        point = interpolate_at_mile(other, mile)[:2]
+        x, y = _projected(point)
+        buckets.setdefault((math.floor(x / tolerance_miles), math.floor(y / tolerance_miles)), []).append(point)
+
+    def is_near(point: LatLon) -> bool:
+        x, y = _projected(point)
+        cx, cy = math.floor(x / tolerance_miles), math.floor(y / tolerance_miles)
+        return any(
+            haversine_miles(point, candidate) <= tolerance_miles
+            for dx in (-1, 0, 1)
+            for dy in (-1, 0, 1)
+            for candidate in buckets.get((cx + dx, cy + dy), ())
+        )
+
+    samples = [interpolate_at_mile(route, mile)[:2] for mile in sample_miles(route.distance_mi, spacing_miles)]
+    return sum(is_near(point) for point in samples) / len(samples)
 
 
 def _sample_routes(routes: Iterable[Route], spacing_miles: float) -> list[tuple[float, float]]:

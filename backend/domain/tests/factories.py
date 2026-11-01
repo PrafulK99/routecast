@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from domain.checkpoints import cumulative_totals
 from domain.constants import Level
+from domain.geo import haversine_miles
 from domain.models import Route, RouteSummary
 
 DEPARTURE = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
@@ -17,6 +18,13 @@ def straight_route(total_miles, seconds_per_mile=60.0, route_id="r", label="Rout
     cum_mi, cum_s = cumulative_totals(segment_mi, segment_s)
     geometry = tuple((0.0, mile / 69.0) for mile in cum_mi)
     return Route(route_id, label, geometry, cum_mi, cum_s)
+
+
+def route_through(points, route_id="r", label="Route A", seconds_per_mile=60.0):
+    """A route along the given (lat, lon) vertices; segment miles are great-circle."""
+    segment_mi = [haversine_miles(a, b) for a, b in zip(points, points[1:])]
+    cum_mi, cum_s = cumulative_totals(segment_mi, [mi * seconds_per_mile for mi in segment_mi])
+    return Route(route_id, label, tuple(points), cum_mi, cum_s)
 
 
 def summary(

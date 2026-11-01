@@ -2,6 +2,7 @@
 
 import logging
 
+import httpx
 import pytest
 
 from providers.errors import (
@@ -10,7 +11,8 @@ from providers.errors import (
     WeatherRateLimitedError,
     WeatherUnavailableError,
 )
-from providers.fakes import FakeRoutingProvider
+from providers.fakes import FakeRoutingProvider, InMemoryCache
+from providers.openmeteo import OpenMeteoWeatherProvider
 
 from .helpers import (
     REQUEST_ID,
@@ -98,6 +100,55 @@ def test_internal_error_500_hides_the_details(client, providers, caplog):
     # The stack trace goes to the log, tagged with the request id.
     record = next(r for r in caplog.records if r.name == "routecast.api")
     assert REQUEST_ID in record.getMessage() and record.exc_info is not None
+
+
+def real_weather_provider_answering_429(reason, requests):
+    """The real Open-Meteo adapter over a fake HTTP layer that always answers 429."""
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(429, json={"error": True, "reason": reason})
+
+    return OpenMeteoWeatherProvider(
+        httpx.Client(transport=httpx.MockTransport(handler)), InMemoryCache(), sleep=lambda seconds: None
+    )
+
+
+def test_a_daily_weather_limit_says_try_again_later_and_hides_the_reason(client, providers, caplog):
+    requests = []
+    reason = "Daily API request limit exceeded. Internal ticket SECRET-42."
+    providers(weather=real_weather_provider_answering_429(reason, requests))
+    caplog.set_level(logging.INFO)
+
+    response = post(client)
+
+    error = assert_error(response, 503, "weather_rate_limited")
+    assert error["message"] == "The weather service is rate limited; try again later."
+    assert "SECRET-42" not in response.content.decode() and "Daily API" not in response.content.decode()
+    assert len(requests) == 1  # a daily limit is not retried
+    # The reason goes to the log, tagged with the same request id the client received.
+    record = next(r for r in caplog.records if r.name == "routecast.weather")
+    assert record.levelno == logging.WARNING
+    assert f"request_id={REQUEST_ID}" in record.getMessage() and "SECRET-42" in record.getMessage()
+
+
+def test_a_minutely_weather_limit_says_try_again_in_a_minute(client, providers):
+    requests = []
+    providers(weather=real_weather_provider_answering_429("Minutely API request limit exceeded.", requests))
+
+    error = assert_error(post(client), 503, "weather_rate_limited")
+
+    assert error["message"] == "The weather service is rate limited; try again in a minute."
+    assert len(requests) == 3  # the request and two retries
+
+
+def test_the_heatmap_reports_a_weather_limit_the_same_way(client, providers):
+    providers(weather=real_weather_provider_answering_429("Hourly API request limit exceeded.", []))
+
+    response = client.post(HEATMAP, heatmap_payload(), format="json")
+
+    error = assert_error(response, 503, "weather_rate_limited")
+    assert error["message"].endswith("try again later.")
 
 
 def test_rate_limited_429_on_the_31st_request(client, providers):

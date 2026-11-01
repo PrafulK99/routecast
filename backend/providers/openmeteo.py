@@ -1,5 +1,9 @@
 """Open-Meteo adapter. Weather data by Open-Meteo.com (CC BY 4.0)."""
 
+import contextvars
+import logging
+import random
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -18,10 +22,20 @@ from .constants import (
     RETRY_BACKOFF_S,
     WEATHER_BATCH_SIZE,
     WEATHER_MAX_WORKERS,
+    WEATHER_RATE_LIMIT_DELAYS_S,
+    WEATHER_RATE_LIMIT_JITTER_S,
+    WEATHER_REASON_MAX_CHARS,
     WEATHER_TIMEOUT_S,
 )
 from .errors import WeatherRateLimitedError, WeatherUnavailableError
 from .interfaces import Cache, Cell, LatLon, Series, WeatherResult
+from .request_context import request_id_var
+
+logger = logging.getLogger("routecast.weather")
+
+_URL = re.compile(r"\S*://\S*")
+MESSAGE_RETRY_SOON = "The weather service is rate limited; try again in a minute."
+MESSAGE_RETRY_LATER = "The weather service is rate limited; try again later."
 
 
 def _utc(text: str) -> datetime:
@@ -83,6 +97,36 @@ def forecast_days_for(latest_hour: datetime, now: datetime) -> int:
     return max(1, min(days, MAX_FORECAST_DAYS))
 
 
+def _parse_batch(response: httpx.Response, expected: int) -> list[dict[datetime, WeatherSample]] | None:
+    """The parsed series, or None if the body is malformed or has the wrong number of locations."""
+    try:
+        parsed = parse_forecast(response.json())
+    except (ValueError, KeyError, TypeError):
+        return None
+    return parsed if len(parsed) == expected else None
+
+
+def rate_limit_reason(response: httpx.Response) -> str:
+    """The "reason" of a 429 body, made safe to log: one line, URLs removed, at
+    most 200 characters. It is for the logs only and never reaches the API client."""
+    try:
+        reason = response.json().get("reason")
+    except (ValueError, AttributeError):
+        return ""
+    if not isinstance(reason, str):
+        return ""
+    return " ".join(_URL.sub("[url]", reason).split())[:WEATHER_REASON_MAX_CHARS]
+
+
+def rate_limit_kind(reason: str) -> str:
+    """minutely, hourly or daily from the reason text, else unknown."""
+    lowered = reason.lower()
+    for kind in ("minutely", "hourly", "daily"):
+        if kind in lowered:
+            return kind
+    return "unknown"
+
+
 def _cache_key(cell: Cell) -> str:
     return f"weather:{cell[0]:.1f}:{cell[1]:.1f}"
 
@@ -95,12 +139,14 @@ class OpenMeteoWeatherProvider:
         clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
         ttl_s: int = DEFAULT_WEATHER_CACHE_TTL_S,
         sleep: Callable[[float], None] = time.sleep,
+        jitter: Callable[[float], float] = lambda limit: random.uniform(0, limit),
     ):
         self._client = client
         self._cache = cache
         self._clock = clock
         self._ttl_s = ttl_s
         self._sleep = sleep
+        self._jitter = jitter
 
     def get_series(self, points: Iterable[LatLon], latest_hour: datetime) -> WeatherResult:
         if latest_hour.utcoffset() is None:
@@ -125,7 +171,12 @@ class OpenMeteoWeatherProvider:
                 for i in range(0, len(missing), WEATHER_BATCH_SIZE)
             ]
             with ThreadPoolExecutor(max_workers=WEATHER_MAX_WORKERS) as pool:
-                outcomes = list(pool.map(lambda batch: self._fetch_batch(batch, days), batches))
+                # Each worker gets a copy of the context so its log lines carry the request id.
+                futures = [
+                    pool.submit(contextvars.copy_context().run, self._fetch_batch, batch, days)
+                    for batch in batches
+                ]
+                outcomes = [future.result() for future in futures]
             for batch, fetched in zip(batches, outcomes):
                 if fetched is None:
                     failed.update(batch)
@@ -149,23 +200,35 @@ class OpenMeteoWeatherProvider:
             "timezone": "GMT",
             "forecast_days": days,
         }
-        for attempt in range(2):
-            if attempt:
-                self._sleep(RETRY_BACKOFF_S)
+        failures = 0
+        rate_limit_delays = iter(WEATHER_RATE_LIMIT_DELAYS_S)
+        while True:
             try:
                 response = self._client.get(OPEN_METEO_URL, params=params, timeout=WEATHER_TIMEOUT_S)
             except httpx.HTTPError:
+                response = None
+            if response is not None and response.status_code == 429:
+                reason = rate_limit_reason(response)
+                kind = rate_limit_kind(reason)
+                logger.warning(
+                    "weather rate limited request_id=%s kind=%s reason=%r", request_id_var.get(), kind, reason
+                )
+                # Only a per-minute limit clears quickly enough to be worth waiting for.
+                delay = next(rate_limit_delays, None) if kind == "minutely" else None
+                if delay is None:
+                    raise WeatherRateLimitedError(
+                        MESSAGE_RETRY_SOON if kind == "minutely" else MESSAGE_RETRY_LATER
+                    )
+                self._sleep(delay + self._jitter(WEATHER_RATE_LIMIT_JITTER_S))
                 continue
-            if response.status_code == 429:
-                raise WeatherRateLimitedError("The weather service rate limit was reached; try again later.")
-            if response.status_code >= 500:
-                continue
-            if response.status_code != 200:
+            if response is not None:
+                if response.status_code == 200:
+                    parsed = _parse_batch(response, len(cells))
+                    if parsed is not None:
+                        return parsed
+                elif response.status_code < 500:
+                    return None  # a client error will not improve on retry
+            failures += 1
+            if failures >= 2:
                 return None
-            try:
-                parsed = parse_forecast(response.json())
-            except (ValueError, KeyError, TypeError):
-                continue
-            if len(parsed) == len(cells):
-                return parsed
-        return None
+            self._sleep(RETRY_BACKOFF_S)

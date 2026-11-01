@@ -62,6 +62,7 @@ def make_provider(stub, cache=None, sleeps=None):
         cache if cache is not None else InMemoryCache(),
         clock=lambda: NOW,
         sleep=(sleeps if sleeps is not None else []).append,
+        jitter=lambda limit: 0.0,
     )
 
 

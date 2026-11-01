@@ -105,6 +105,65 @@ def test_all_blocked_recommends_the_least_blocked_with_a_warning():
     assert len(result.reasons) == 2
 
 
+def test_all_blocked_says_fewest_when_the_winner_is_strictly_lower_than_every_other():
+    result = rank_routes(
+        [
+            summary("Route A", 0, no_travel=40),
+            summary("Route B", 1, no_travel=12.5),
+            summary("Route C", 2, no_travel=25),
+        ]
+    )
+
+    assert result.reasons[0] == (
+        "Every route has No Travel conditions. Route B has the fewest (12.5 miles); "
+        "do not treat it as a safe route."
+    )
+
+
+def test_all_blocked_with_equal_no_travel_miles_does_not_claim_the_fewest():
+    # Equal No Travel miles everywhere, so the remaining measures decide: B has fewer Severe miles.
+    result = rank_routes(
+        [
+            summary("Route A", 0, no_travel=40, severe=10),
+            summary("Route B", 1, no_travel=40, severe=5),
+            summary("Route C", 2, no_travel=40, severe=20),
+        ]
+    )
+
+    assert result.route_id == "Route B"
+    assert result.all_blocked is True
+    assert result.reasons[0] == (
+        "Every route has at least 40 miles of No Travel conditions. Route B ranks best on "
+        "the remaining measures; do not treat it as a safe route."
+    )
+    assert "fewest" not in result.reasons[0]
+
+
+def test_all_blocked_with_the_lowest_no_travel_miles_tied_does_not_claim_the_fewest():
+    # B wins on Severe miles, but A has just as few No Travel miles, so B is not strictly lower.
+    result = rank_routes(
+        [
+            summary("Route A", 0, no_travel=12.5, severe=5),
+            summary("Route B", 1, no_travel=12.5, severe=0),
+            summary("Route C", 2, no_travel=40),
+        ]
+    )
+
+    assert result.route_id == "Route B"
+    assert result.reasons[0].startswith("Every route has at least 12.5 miles of No Travel conditions.")
+    assert "Route B ranks best on the remaining measures" in result.reasons[0]
+
+
+def test_all_blocked_compares_no_travel_miles_to_a_tenth_of_a_mile():
+    # 12.52 and 12.54 are both 12.5 in the ranking and on screen: equal, not "fewest".
+    result = rank_routes(
+        [summary("Route A", 0, no_travel=12.54, severe=1), summary("Route B", 1, no_travel=12.52, severe=0)]
+    )
+
+    assert result.route_id == "Route B"
+    assert result.reasons[0].startswith("Every route has at least 12.5 miles of No Travel conditions.")
+
+
 # Reason text, built from the first key where winner and runner-up differ.
 def test_reason_when_the_winner_is_slower():
     a = summary("Route A", 0, severe=14, duration_s=3600)

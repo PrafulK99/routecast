@@ -72,9 +72,13 @@ MILE_EPSILON = 1e-6
 
 # Corridor points for the heatmap
 CORRIDOR_SPACING_MILES = 15
-CORRIDOR_POINT_CAP = 200
+CORRIDOR_POINT_CAP = 120  # each grid cell is one Open-Meteo call against a daily quota
 CORRIDOR_SPACING_GROWTH = 1.5
 GRID_DECIMALS = 1
+
+# Geometry sent to the browser
+DISPLAY_TOLERANCE_MILES = 0.031  # about 50 m
+DISPLAY_MAX_POINTS = 2000
 
 # Ranking
 MILES_ROUNDING_DECIMALS = 1

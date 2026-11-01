@@ -99,11 +99,20 @@ def rank_routes(summaries: Sequence[RouteSummary]) -> Recommendation:
 
     reasons = []
     if all_blocked:
-        no_travel = _number(winner.miles_by_level[Level.NO_TRAVEL])
-        reasons.append(
-            f"Every route has No Travel conditions. {winner.label} has the fewest "
-            f"({no_travel} miles); do not treat it as a safe route."
-        )
+        # Compared as the ranking compares them, to a tenth of a mile.
+        no_travel = {s.route_id: _sort_key(s)[0] for s in ordered}
+        winner_miles = no_travel[winner.route_id]
+        fewest = all(winner_miles < miles for route_id, miles in no_travel.items() if route_id != winner.route_id)
+        if fewest:
+            reasons.append(
+                f"Every route has No Travel conditions. {winner.label} has the fewest "
+                f"({_number(winner_miles)} miles); do not treat it as a safe route."
+            )
+        else:
+            reasons.append(
+                f"Every route has at least {_number(winner_miles)} miles of No Travel conditions. "
+                f"{winner.label} ranks best on the remaining measures; do not treat it as a safe route."
+            )
     if len(ordered) == 1:
         reasons.append("Only one route was available, so no alternatives were compared.")
     else:

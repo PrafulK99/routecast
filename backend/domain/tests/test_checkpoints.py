@@ -75,6 +75,14 @@ def test_choose_interval(requested, total, expected):
     assert choose_interval(total, requested) == expected
 
 
+def test_choose_interval_honours_a_custom_maximum():
+    # 1,000 miles: 101 checkpoints at 10 miles, 41 at 25 miles.
+    assert choose_interval(1000, 10) == 10
+    assert choose_interval(1000, 10, max_checkpoints=50) == 25
+    assert choose_interval(1000, 10, max_checkpoints=30) == 50
+    assert choose_interval(1000, 10, max_checkpoints=5) == 50  # still too many: largest returned
+
+
 def test_choose_interval_rejects_unknown_interval():
     with pytest.raises(ValueError):
         choose_interval(100, 15)

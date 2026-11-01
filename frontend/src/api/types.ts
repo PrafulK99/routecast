@@ -1,4 +1,4 @@
-﻿// Mirrors the response serializers in backend/api/serializers.py field for field.
+// Mirrors the response serializers in backend/api/serializers.py field for field.
 // fixtures/check.ts type-checks real sample responses against these, so the
 // build fails if a field is missing, renamed or retyped. Types are kept as plain
 // number/string (allowed values in comments) because a JSON import is typed loosely.

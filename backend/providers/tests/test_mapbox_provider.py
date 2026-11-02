@@ -1,3 +1,4 @@
+import copy
 import re
 
 import httpx
@@ -6,7 +7,7 @@ import pytest
 from providers.errors import NoRouteError, RoutingUnavailableError
 from providers.fakes import InMemoryCache
 from providers.interfaces import WARNING_MISSING_ANNOTATIONS, WARNING_ROUTE_FALLBACK, warning_few_routes
-from providers.mapbox import MapboxRoutingProvider
+from providers.mapbox import MapboxRoutingProvider, parse_directions, via_offset_miles, without_duplicates
 
 from .helpers import directions_body, json_response, mapbox_body, waypoints
 
@@ -53,8 +54,11 @@ def make_provider(handler, cache=None, sleeps=None):
 
 
 def three_routes():
+    """The recorded pair plus a third road 0.5 degrees of longitude away (never a duplicate)."""
     body = mapbox_body()
-    body["routes"].append(body["routes"][0])
+    third = copy.deepcopy(body["routes"][0])
+    third["geometry"]["coordinates"] = [[lon + 0.5, lat] for lon, lat in third["geometry"]["coordinates"]]
+    body["routes"].append(third)
     return body
 
 
@@ -328,22 +332,32 @@ def test_all_four_candidates_are_requested_through_offset_points():
 
     vias = [waypoints(r)[1] for r in stub.via_calls]
     assert len(vias) == 4
-    # Offset is 20% of ~104 miles = ~20.7 miles, at 35% and 65% along the road.
-    expected_lats = {round(30.0 + 0.35 * 1.5, 1), round(30.0 + 0.65 * 1.5, 1)}
-    assert {round(v[0], 1) for v in vias} == expected_lats
+    # Positions 35% and 65% along the road; offsets 20% and 40% of ~104 miles (~20.7 and ~41.4 miles).
+    near = sorted(abs(lon + 97.0) * 59.8 for lat, lon in vias if round(lat, 1) == round(30.0 + 0.35 * 1.5, 1))
+    far = sorted(abs(lon + 97.0) * 59.8 for lat, lon in vias if round(lat, 1) == round(30.0 + 0.65 * 1.5, 1))
+    assert near == [pytest.approx(20.7, abs=1.0)] * 2
+    assert far == [pytest.approx(41.4, abs=1.5)] * 2
     assert sorted(v[1] < -97.0 for v in vias) == [False, False, True, True]
-    for lat, lon in vias:
-        assert abs(lon + 97.0) * 59.8 == pytest.approx(20.7, abs=1.0)  # ~59.8 mi per degree of lon here
 
 
-def test_candidates_keep_a_fixed_order_left_before_right():
-    stub, provider = fallback_provider(detour)
+@pytest.mark.parametrize(
+    "share, straight, expected",
+    [
+        (0.20, 104, 20.8),  # typical short trip: the share itself
+        (0.20, 20, 10),  # tiny trip: the minimum
+        (0.40, 1238, 495.2),  # long trip: far beyond the old 60-mile cap
+        (0.40, 3000, 600),  # extreme trip: the maximum
+    ],
+)
+def test_via_offset_is_a_share_of_the_straight_line_distance_within_limits(share, straight, expected):
+    assert via_offset_miles(share, straight) == pytest.approx(expected)
 
-    result = provider.get_routes(ORIGIN, DESTINATION)
 
-    # The first two candidates in order are left (west) then right (east) at 35%.
-    assert min(lon for _, lon in result.routes[1].geometry) < -97.0
-    assert max(lon for _, lon in result.routes[2].geometry) > -97.0
+def test_the_same_trip_always_gives_the_same_routes():
+    first = fallback_provider(detour)[1].get_routes(ORIGIN, DESTINATION)
+    second = fallback_provider(detour)[1].get_routes(ORIGIN, DESTINATION)
+
+    assert [r.geometry for r in first.routes] == [r.geometry for r in second.routes]
 
 
 def test_a_candidate_more_than_1_5_times_the_primary_is_dropped():
@@ -435,15 +449,122 @@ def test_two_provider_routes_get_one_fallback_route():
     assert result.routes[1].geometry[1] == (30.75, -97.02)  # provider route kept in place
 
 
-def test_routes_returned_by_the_provider_are_never_filtered():
-    # Two identical routes straight from Mapbox are both kept; only candidates are filtered.
-    base = directions_body([[PRIMARY], [PRIMARY]])
-    stub, provider = fallback_provider(lambda via: 500, base)
+def alternative(share):
+    """A provider alternative that follows PRIMARY for `share` of its length, then leaves it."""
+    keep = int(round(share * 20))
+    on_road = [(30.0 + 1.5 * i / 20, -97.0) for i in range(keep + 1)]
+    off_road = [(30.0 + 1.5 * i / 20, -97.0 - 0.5) for i in range(keep + 1, 21)]
+    return on_road + off_road
+
+
+def fine_primary():
+    return [(30.0 + 1.5 * i / 20, -97.0) for i in range(21)]
+
+
+def two_with_alternative(share):
+    return directions_body([[fine_primary()], [alternative(share)]])
+
+
+def test_an_identical_provider_route_is_a_duplicate_and_candidates_fill_the_slot():
+    stub, provider = fallback_provider(detour, directions_body([[PRIMARY], [PRIMARY]]))
 
     result = provider.get_routes(ORIGIN, DESTINATION)
 
-    assert len(result.routes) == 2
-    assert result.warnings == (warning_few_routes(2),)
+    assert len(result.routes) == 3
+    assert WARNING_ROUTE_FALLBACK in result.warnings
+    assert len(stub.requests) <= 5
+    assert all(any(lon != -97.0 for _, lon in r.geometry) for r in result.routes[1:])  # real detours
+
+
+def test_a_duplicate_with_no_good_candidates_leaves_one_route_and_a_notice():
+    stub, provider = fallback_provider(lambda via: 500, directions_body([[PRIMARY], [PRIMARY]]))
+
+    result = provider.get_routes(ORIGIN, DESTINATION)
+
+    assert len(result.routes) == 1
+    assert result.warnings == (warning_few_routes(1),)
+
+
+def test_an_alternative_sharing_about_90_percent_is_kept():
+    stub, provider = fallback_provider(lambda via: 500, two_with_alternative(0.90))
+
+    assert len(provider.get_routes(ORIGIN, DESTINATION).routes) == 2
+
+
+def test_an_alternative_sharing_about_97_percent_is_dropped():
+    routes = without_duplicates(parse_directions(two_with_alternative(0.975))[0])
+
+    assert len(routes) == 1
+
+
+def test_an_alternative_overlapping_an_earlier_alternative_is_dropped_too():
+    far = [(30.0 + 1.5 * i / 20, -97.5) for i in range(21)]
+    body = directions_body([[fine_primary()], [far], [far]])
+
+    assert len(without_duplicates(parse_directions(body)[0])) == 2
+
+
+def test_dropping_a_duplicate_keeps_the_call_budget_at_five():
+    stub, provider = fallback_provider(detour, directions_body([[PRIMARY], [PRIMARY]]))
+
+    provider.get_routes(ORIGIN, DESTINATION)
+
+    assert len(stub.base_calls) == 1
+    assert len(stub.via_calls) == 4
+
+
+def test_a_candidate_beyond_the_old_sixty_mile_cap_gives_a_third_route_on_a_long_trip():
+    # A 1,000-mile north-south trip: a 60-mile sideways offset would stay on the highway, 40% (~400 mi) does not.
+    origin, destination = (20.0, -97.0), (34.5, -97.0)
+    road = [(20.0 + 0.5 * i, -97.0) for i in range(30)]
+
+    def candidate(via):
+        # Mapbox snaps any via point within 100 miles of the road back onto it; farther ones are real detours.
+        if abs(via[1] + 97.0) * 59.8 < 100:
+            return directions_body([[[origin, (27.0, -97.0)], [(27.0, -97.0), destination]]])
+        return directions_body([[[origin, via], [via, destination]]])
+
+    stub = Stub(directions_body([[road], [road]]), candidate)
+
+    result = make_provider(stub).get_routes(origin, destination)
+
+    assert len(result.routes) == 3
+    assert max(abs(lon + 97.0) for r in result.routes for _, lon in r.geometry) * 59.8 > 100
+
+
+def test_the_best_fit_candidate_wins_not_the_first_that_passes():
+    # West candidates share 3 of 4 vertices' worth of road with the primary (passes the 0.80 gate narrowly);
+    # east candidates are a clean detour. The first candidate in order is west, yet east must be chosen.
+    def candidate(via):
+        if west_of_route(via):
+            return directions_body([[PRIMARY[:3], [PRIMARY[2], (31.3, -97.2), DESTINATION]]])
+        return detour(via)
+
+    stub, provider = fallback_provider(candidate)
+
+    result = provider.get_routes(ORIGIN, DESTINATION)
+
+    assert len(result.routes) == 3
+    assert max(lon for _, lon in result.routes[1].geometry) > -97.0  # the east detour, not the west near-copy
+
+
+def test_a_silly_detour_is_rejected_even_when_it_is_the_only_different_road():
+    def candidate(via):
+        return directions_body([[[ORIGIN, (via[0], via[1] - 3.0)], [(via[0], via[1] - 3.0), DESTINATION]]])
+
+    stub, provider = fallback_provider(candidate)
+
+    result = provider.get_routes(ORIGIN, DESTINATION)
+
+    assert len(result.routes) == 1
+
+
+def test_mapbox_calls_never_exceed_five():
+    stub, provider = fallback_provider(detour, directions_body([[PRIMARY], [PRIMARY]]))
+
+    provider.get_routes(ORIGIN, DESTINATION)
+
+    assert len(stub.requests) <= 5
 
 
 def test_candidate_with_missing_annotations_adds_its_warning_when_kept():

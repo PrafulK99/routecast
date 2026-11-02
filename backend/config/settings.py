@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "api.middleware.RequestIdMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # inside the request-id layer, so compressed replies still carry it
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]

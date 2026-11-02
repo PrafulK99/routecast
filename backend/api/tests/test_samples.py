@@ -1,4 +1,4 @@
-"""Writes real responses for the frontend to type-check against and use as mock data.
+"""Writes real responses (plan, analyze, heatmap) for the frontend to type-check against and use as mock data.
 
 Scenario 3 (storm on the fastest route). The files are rewritten only when their
 content changes; the frozen clock and request id make the output deterministic.
@@ -35,6 +35,11 @@ def test_write_the_analyze_and_heatmap_samples(client, providers):
         format="json",
     )
     assert heat.status_code == 200
+
+    plan = client.post("/api/plan", analyze_payload(load_weight_lb=20_000), format="json")
+    assert plan.status_code == 200
+    plan_path = write_sample("plan.sample.json", plan.json())
+    assert json.loads(plan_path.read_text(encoding="utf-8")) == plan.json()
 
     analyze_path = write_sample("analyze.sample.json", body)
     heatmap_path = write_sample("heatmap.sample.json", heat.json())

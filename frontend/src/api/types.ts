@@ -18,6 +18,23 @@ export interface AnalyzeRequest {
   departure_time: string // ISO 8601 with a UTC offset, from the current hour to 7 days ahead
   load_weight_lb: number // integer, 0 to 200000
   checkpoint_interval_miles?: number // 10, 25 or 50; default 25
+  weather?: WeatherCell[] // fetched by the browser; without it the server fetches the weather itself
+}
+
+/** One grid cell of Open-Meteo hourly output (mph, inches), exactly as /api/plan named the cell. */
+export interface WeatherCell {
+  lat: number
+  lon: number
+  time: string[] // UTC hours with no zone suffix, e.g. 2026-11-02T14:00
+  wind_speed_10m: (number | null)[]
+  rain: (number | null)[]
+  showers: (number | null)[]
+  snowfall: (number | null)[]
+}
+
+export interface PlanResponse {
+  cells: number[][] // [lat, lon] grid cells of every checkpoint of every route
+  window: { first_hour: string; last_hour: string } // UTC hours the weather must cover
 }
 
 export interface Risk {
@@ -113,12 +130,14 @@ export interface AnalyzeResponse {
   routes: Route[]
   recommendation: Recommendation
   corridor_points: number[][] // [lat, lon] pairs, at most 120
+  corridor_cells: number[][] // [lat, lon] grid cells of the corridor points: the heatmap's weather
 }
 
 export interface HeatmapRequest {
   points: number[][] // [lat, lon] pairs, 1 to 120
   departure_time: string
   load_weight_lb: number
+  weather?: WeatherCell[] // fetched by the browser, for the corridor_cells
 }
 
 export interface HeatmapPoint {
@@ -137,7 +156,7 @@ export interface HeatmapResponse {
 export interface ApiErrorBody {
   error: {
     code: string // validation_error, no_route, route_too_long, routing_unavailable,
-    // weather_unavailable, weather_rate_limited, rate_limited, internal_error, ...
+    // weather_unavailable, weather_rate_limited, rate_limited, payload_too_large, internal_error, ...
     message: string
     fields: Record<string, string[]> // per-field messages, empty when not about a field
     request_id: string | null

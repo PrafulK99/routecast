@@ -1,3 +1,4 @@
+import { WeatherError } from '../weather/openMeteo'
 import { ApiError } from './client'
 
 export interface ErrorView {
@@ -16,13 +17,28 @@ const MESSAGES: Record<string, string> = {
   routing_unavailable: 'The routing service is not responding. Please try again in a moment.',
   weather_unavailable:
     'The weather service could not provide a forecast, so no safety score can be shown. Please try again in a moment.',
+  payload_too_large: 'The weather data for this trip was too large for the server. Try a shorter trip.',
   internal_error: 'Something went wrong on our side. Please try again.',
 }
+
+// What Open-Meteo's 429 means for the visitor, by which quota ran out.
+const WEATHER_LIMIT_MESSAGES: Record<string, string> = {
+  minutely: 'The weather service is busy (per-minute limit). Wait a minute, then try again.',
+  hourly: 'The hourly weather limit for your connection has been reached. Try again in about an hour.',
+  daily: 'The daily weather limit for your connection has been reached. It resets at midnight UTC; try again tomorrow.',
+  unknown: 'The weather service is rate limited. Please try again later.',
+}
+const WEATHER_UNREACHABLE =
+  'The weather service could not be reached. Check your internet connection and try again.'
 
 const FALLBACK_RATE_LIMITED = 'You are sending requests too quickly. Wait a moment, then try again.'
 const FALLBACK_WEATHER_RATE_LIMITED = 'The weather service is rate limited; try again later.'
 
 export function describeError(error: unknown): ErrorView {
+  if (error instanceof WeatherError) {
+    const message = error.kind === 'rate_limited' ? WEATHER_LIMIT_MESSAGES[error.limit] : WEATHER_UNREACHABLE
+    return { message, fields: {}, requestId: null }
+  }
   if (!(error instanceof ApiError)) {
     return { message: MESSAGES.internal_error, fields: {}, requestId: null }
   }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { analyze, fetchHeatmap, wakeServer } from './api/client'
+import { wakeServer } from './api/client'
 import type { AnalyzeRequest } from './api/types'
 import './App.css'
 import { ErrorPanel } from './components/ErrorPanel'
@@ -13,6 +13,7 @@ import { TripForm } from './components/TripForm'
 import { HeatmapController } from './heatmap/controller'
 import { selectHeatmap } from './heatmap/data'
 import { heatmapDeparture } from './heatmap/departure'
+import { STAGE_LABELS, type Stage, runAnalysis, runHeatmap } from './flow'
 import { useAfterDelay } from './hooks'
 
 // The map library is large; load it after the form is already usable.
@@ -27,6 +28,7 @@ interface Submission {
 
 export default function App() {
   const [submission, setSubmission] = useState<Submission | null>(null)
+  const [stage, setStage] = useState<Stage>('planning')
   const [selection, setSelection] = useState<{ analysisId: string; routeId: string } | null>(null)
 
   // Wake a sleeping free-tier server while the user fills in the form.
@@ -36,7 +38,7 @@ export default function App() {
   // reply can never replace newer data.
   const query = useQuery({
     queryKey: ['analyze', submission?.id],
-    queryFn: ({ signal }) => analyze(submission!.request, signal),
+    queryFn: ({ signal }) => runAnalysis(submission!.request, signal, setStage),
     enabled: submission !== null,
     retry: false,
     staleTime: Infinity,
@@ -55,12 +57,10 @@ export default function App() {
     queryFn: async ({ signal }) => {
       // A Retry long after the analysis would be refused for a departure that has passed.
       const { departure, adjusted } = heatmapDeparture(submission!.request.departure_time, new Date())
-      const response = await fetchHeatmap(
-        {
-          points: analysis!.corridor_points,
-          departure_time: departure,
-          load_weight_lb: submission!.request.load_weight_lb,
-        },
+      const response = await runHeatmap(
+        analysis!,
+        departure,
+        submission!.request.load_weight_lb,
         signal,
       )
       return { response, adjusted }
@@ -99,7 +99,14 @@ export default function App() {
             </p>
           )}
           {!submission && <p className="idle">Enter a trip to compare three routes for weather risk.</p>}
-          {query.isFetching && <RouteCardsSkeleton />}
+          {query.isFetching && (
+            <>
+              <p className="stage" role="status">
+                {STAGE_LABELS[stage]}…
+              </p>
+              <RouteCardsSkeleton />
+            </>
+          )}
           {query.isError && !query.isFetching && <ErrorPanel error={query.error} onRetry={retry} />}
           {analysis && !query.isFetching && (
             <>

@@ -41,7 +41,7 @@ def test_response_has_exactly_the_documented_keys(client, providers):
 
     body = analyze(client)
 
-    assert set(body) == {"meta", "routes", "recommendation", "corridor_points"}
+    assert set(body) == {"meta", "routes", "recommendation", "corridor_points", "corridor_cells"}
     assert set(body["meta"]) == {
         "request_id", "interval_miles", "truck_duration_factor", "forecast_source", "warnings"
     }
@@ -210,6 +210,16 @@ def test_corridor_points_are_capped_pairs(client, providers):
 
     assert 2 < len(points) <= 120
     assert all(len(point) == 2 and -90 <= point[0] <= 90 and -180 <= point[1] <= 180 for point in points)
+
+
+def test_corridor_cells_are_the_unique_grid_cells_of_the_corridor_points(client, providers):
+    providers(three_routes())
+
+    body = analyze(client)
+
+    expected = list(dict.fromkeys(grid_cell(*point) for point in body["corridor_points"]))
+    assert [tuple(cell) for cell in body["corridor_cells"]] == expected  # first-seen order
+    assert len(body["corridor_cells"]) <= len(body["corridor_points"]) <= 120
 
 
 # --- logging --------------------------------------------------------------------

@@ -2,12 +2,11 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from time import perf_counter
 
 from django.conf import settings
 
-from domain.checkpoints import choose_interval, place_checkpoints, sample_miles
 from domain.constants import CORRIDOR_POINT_CAP, DISPLAY_MAX_POINTS, DISPLAY_TOLERANCE_MILES
 from domain.geo import LatLon, corridor_points, grid_cell, simplify_polyline
 from domain.models import WeatherSample
@@ -17,8 +16,7 @@ from domain.scoring import summarize_route
 from domain.weather import weather_at
 from providers.interfaces import RoutingProvider, WeatherProvider
 
-from .errors import RouteTooLongError
-from .hours import HEATMAP_HOURS, floor_hour
+from .plan import plan_routes
 from .results import AnalysisResult, CheckpointResult, Meta, RouteResult
 from .timing import log_timings, timed
 
@@ -49,37 +47,12 @@ def analyze_trip(
 
 def _analyze(trip, request_id, routing, weather, timings) -> AnalysisResult:
     truck_factor = settings.TRUCK_DURATION_FACTOR
-    max_checkpoints = settings.MAX_CHECKPOINTS_PER_ROUTE
 
-    with timed(timings, "mapbox"):
-        routing_result = routing.get_routes(trip.origin, trip.destination)
-    routes = list(routing_result.routes)
-    warnings = list(routing_result.warnings)
+    planned = plan_routes(trip, routing, timings)
+    routes, placed, warnings = planned.routes, planned.placed, planned.warnings
+    interval = planned.interval_miles
+    latest_hour = planned.latest_hour
 
-    # The longest route needs the most checkpoints, so it decides the interval.
-    longest = max(route.distance_mi for route in routes)
-    interval = choose_interval(longest, trip.interval_miles, max_checkpoints)
-    if len(sample_miles(longest, interval)) > max_checkpoints:
-        raise RouteTooLongError(
-            f"The longest route is {longest:.0f} miles, which needs more than "
-            f"{max_checkpoints} checkpoints even at {interval}-mile spacing."
-        )
-    if interval != trip.interval_miles:
-        warnings.append(
-            f"Checkpoint interval raised from {trip.interval_miles} to {interval} miles "
-            f"so each route stays within {max_checkpoints} checkpoints."
-        )
-
-    placed = [
-        place_checkpoints(route, interval, trip.departure_utc, truck_factor) for route in routes
-    ]
-
-    # Fetch far enough for the last ETA and for the 48-hour heatmap that follows,
-    # so the heatmap request can reuse the cached series.
-    latest_hour = max(
-        max(cp.forecast_hour_utc for cps in placed for cp in cps),
-        floor_hour(trip.departure_utc) + timedelta(hours=HEATMAP_HOURS - 1),
-    )
     points = [(cp.lat, cp.lon) for cps in placed for cp in cps]
     with timed(timings, "open_meteo"):
         forecast = weather.get_series(points, latest_hour)
@@ -128,6 +101,7 @@ def _analyze(trip, request_id, routing, weather, timings) -> AnalysisResult:
             "length; the rest could not be scored."
         )
 
+    corridor = corridor_points(routes, cap=CORRIDOR_POINT_CAP)
     return AnalysisResult(
         meta=Meta(
             request_id=request_id,
@@ -138,5 +112,8 @@ def _analyze(trip, request_id, routing, weather, timings) -> AnalysisResult:
         ),
         routes=tuple(route_results),
         recommendation=recommendation,
-        corridor_points=tuple(corridor_points(routes, cap=CORRIDOR_POINT_CAP)),
+        corridor_points=tuple(corridor),
+        # The heatmap request carries the points rounded to 5 decimals (api/serializers.py), so the
+        # cells are taken from those: the weather the client sends back must match what it scores.
+        corridor_cells=tuple(dict.fromkeys(grid_cell(round(lat, 5), round(lon, 5)) for lat, lon in corridor)),
     )

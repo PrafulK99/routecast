@@ -5,6 +5,7 @@ import type {
   ApiErrorBody,
   HeatmapRequest,
   HeatmapResponse,
+  PlanResponse,
 } from './types'
 
 export const ANALYZE_TIMEOUT_MS = 90_000
@@ -92,6 +93,11 @@ async function postJson<T>(path: string, body: unknown, signal: AbortSignal): Pr
     clearTimeout(timer)
     signal.removeEventListener('abort', onCancel)
   }
+}
+
+/** Which weather an analysis needs: the grid cells and the UTC hour window. Fetches none. */
+export function plan(request: AnalyzeRequest, signal: AbortSignal): Promise<PlanResponse> {
+  return postJson('/api/plan', request, signal)
 }
 
 export function analyze(request: AnalyzeRequest, signal: AbortSignal): Promise<AnalyzeResponse> {

@@ -4,7 +4,7 @@ Weather-aware truck routing: three routes scored for weather risk at timed check
 
 - Live app: https://routecast-five.vercel.app/
 - API health: https://routecast-api-dghk.onrender.com/api/health
-- Video walkthrough: _Loom link to come_
+- Video walkthrough: https://www.loom.com/share/a2418eb0836a4618b5c8432b774aa3e9
 
 ## What it does
 

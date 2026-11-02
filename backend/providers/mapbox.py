@@ -22,15 +22,16 @@ from .constants import (
     NO_ROUTE_CODES,
     OVERLAP_SPACING_MILES,
     OVERLAP_TOLERANCE_MILES,
+    PROVIDER_DUPLICATE_OVERLAP,
     RETRY_BACKOFF_S,
     ROUTE_CACHE_TTL_S,
+    VIA_CANDIDATES,
+    VIA_LENGTH_PENALTY,
     VIA_MAX_LENGTH_RATIO,
     VIA_MAX_OVERLAP,
     VIA_MAX_WORKERS,
-    VIA_OFFSET_FRACTION,
     VIA_OFFSET_MAX_MILES,
     VIA_OFFSET_MIN_MILES,
-    VIA_POSITIONS,
 )
 from .errors import NoRouteError, ProviderError, RoutingUnavailableError
 from .interfaces import (
@@ -111,6 +112,26 @@ def parse_directions(body: dict) -> tuple[list[Route], list[str]]:
     return routes, warnings
 
 
+def via_offset_miles(share: float, straight_miles: float) -> float:
+    """How far a candidate via point sits beside the route: a share of the straight-line trip
+    distance, kept within limits (a fixed few miles would leave long trips on the same highway)."""
+    return min(max(share * straight_miles, VIA_OFFSET_MIN_MILES), VIA_OFFSET_MAX_MILES)
+
+
+def _overlap(route: Route, other: Route) -> float:
+    return overlap_fraction(route, other, OVERLAP_SPACING_MILES, OVERLAP_TOLERANCE_MILES)
+
+
+def without_duplicates(routes: list[Route]) -> list[Route]:
+    """Drop a provider route that lies almost entirely on a route already kept
+    (PROVIDER_DUPLICATE_OVERLAP or more), so a via-point candidate can take its place."""
+    kept: list[Route] = []
+    for route in routes:
+        if not any(_overlap(route, other) >= PROVIDER_DUPLICATE_OVERLAP for other in kept):
+            kept.append(route)
+    return kept
+
+
 class MapboxRoutingProvider:
     def __init__(
         self,
@@ -133,6 +154,7 @@ class MapboxRoutingProvider:
 
     def get_routes(self, origin: LatLon, destination: LatLon) -> RoutingResult:
         routes, warnings = parse_directions(self._directions([origin, destination], alternatives=True))
+        routes = without_duplicates(routes)
         if len(routes) < MAX_ROUTES:
             routes, warnings = self._add_via_routes(origin, destination, routes, warnings)
         routes = [
@@ -147,36 +169,38 @@ class MapboxRoutingProvider:
         self, origin: LatLon, destination: LatLon, routes: list[Route], warnings: list[str]
     ) -> tuple[list[Route], list[str]]:
         primary = routes[0]
-        offset = min(
-            max(VIA_OFFSET_FRACTION * haversine_miles(origin, destination), VIA_OFFSET_MIN_MILES),
-            VIA_OFFSET_MAX_MILES,
-        )
-        # Fixed order (left 35%, right 35%, left 65%, right 65%) keeps results deterministic.
+        straight = haversine_miles(origin, destination)
+        # Fixed order (each setting: left, then right) keeps results deterministic.
         via_points = [
             point
-            for fraction in VIA_POSITIONS
-            for point in perpendicular_offsets(primary, fraction, offset)
+            for position, share in VIA_CANDIDATES
+            for point in perpendicular_offsets(primary, position, via_offset_miles(share, straight))
         ]
         with ThreadPoolExecutor(max_workers=VIA_MAX_WORKERS) as pool:
-            candidates = list(pool.map(lambda via: self._via_route(origin, via, destination), via_points))
+            fetched = list(pool.map(lambda via: self._via_route(origin, via, destination), via_points))
 
+        # Only candidates not absurdly longer than the primary are worth comparing.
+        remaining = {
+            index: candidate
+            for index, candidate in enumerate(fetched)
+            if candidate is not None and candidate[0].distance_mi <= VIA_MAX_LENGTH_RATIO * primary.distance_mi
+        }
         kept = list(routes)
         warnings = list(warnings)
         used_fallback = False
-        for candidate in candidates:
-            if len(kept) >= MAX_ROUTES:
+        overlaps: dict[tuple[int, int], float] = {}  # (candidate, kept route) -> overlap, each worked out once
+        while len(kept) < MAX_ROUTES and remaining:
+            scored = []
+            for index, (route, _) in remaining.items():
+                worst = max(overlaps.setdefault((index, id(other)), _overlap(route, other)) for other in kept)
+                if worst <= VIA_MAX_OVERLAP:
+                    ratio = route.distance_mi / primary.distance_mi
+                    # Best fit: the most different road, without a needless detour; ties to the shorter, then the earlier.
+                    scored.append((worst + VIA_LENGTH_PENALTY * (ratio - 1), route.distance_mi, index))
+            if not scored:
                 break
-            if candidate is None:
-                continue
-            route, route_warnings = candidate
-            if route.distance_mi > VIA_MAX_LENGTH_RATIO * primary.distance_mi:
-                continue
-            if any(
-                overlap_fraction(route, other, OVERLAP_SPACING_MILES, OVERLAP_TOLERANCE_MILES)
-                > VIA_MAX_OVERLAP
-                for other in kept
-            ):
-                continue
+            chosen = min(scored)[2]
+            route, route_warnings = remaining.pop(chosen)
             kept.append(route)
             used_fallback = True
             warnings += [w for w in route_warnings if w not in warnings]

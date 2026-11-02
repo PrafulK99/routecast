@@ -12,14 +12,20 @@ NO_ROUTE_CODES = ("NoRoute", "NoSegment")
 # (for example across an ocean): the same answer to the user as "no road between the points".
 DISTANCE_LIMIT_MESSAGE = "maximum distance"
 
-# Via-point fallback
+# Via-point fallback. Mapbox returns at most 2 routes (alternatives=true; a number is refused), so the
+# third comes from a via point. Values chosen from a sweep over six real trips.
 MAX_ROUTES = 3
-VIA_OFFSET_FRACTION = 0.20  # of the straight-line trip distance
+# Candidate via points: (position along the primary route, offset as a share of the straight-line trip
+# distance). Each setting goes to both sides, so 2 settings = 4 candidate calls, 5 Mapbox calls in all.
+VIA_CANDIDATES = ((0.35, 0.20), (0.65, 0.40))
 VIA_OFFSET_MIN_MILES = 10
-VIA_OFFSET_MAX_MILES = 60
-VIA_POSITIONS = (0.35, 0.65)  # fractions along the primary route
+VIA_OFFSET_MAX_MILES = 600
 VIA_MAX_LENGTH_RATIO = 1.5  # candidate length vs the primary route
-VIA_MAX_OVERLAP = 0.80
+VIA_MAX_OVERLAP = 0.80  # a candidate may share at most this much with a route already kept
+# Among valid candidates, the best is the lowest (worst overlap + penalty x extra length ratio).
+VIA_LENGTH_PENALTY = 1.0
+# A route Mapbox itself returns that lies this much on an earlier route is a duplicate and is dropped.
+PROVIDER_DUPLICATE_OVERLAP = 0.95
 OVERLAP_SPACING_MILES = 5
 OVERLAP_TOLERANCE_MILES = 1
 VIA_MAX_WORKERS = 4

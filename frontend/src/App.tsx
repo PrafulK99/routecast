@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { analyze, wakeServer } from './api/client'
+import { analyze, fetchHeatmap, wakeServer } from './api/client'
 import type { AnalyzeRequest } from './api/types'
 import './App.css'
 import { ErrorPanel } from './components/ErrorPanel'
 import { Footer } from './components/Footer'
+import { HeatmapControl } from './components/HeatmapControl'
+import { HeatmapLayer } from './components/HeatmapLayer'
 import { RecommendationBanner } from './components/RecommendationBanner'
 import { RouteCards, RouteCardsSkeleton } from './components/RouteCards'
 import { TripForm } from './components/TripForm'
+import { HeatmapController } from './heatmap/controller'
+import { heatmapToGeoJson } from './heatmap/data'
 import { useAfterDelay } from './hooks'
 
 // The map library is large; load it after the form is already usable.
@@ -39,12 +43,38 @@ export default function App() {
   const analysis = query.data
   const waking = useAfterDelay(query.isFetching, WAKING_AFTER_MS)
 
+  // The heatmap loads after, and independently of, the routes: it is keyed to the
+  // analysis, so a new analysis drops this query and aborts its request, and the
+  // route results never wait on it. Parsed once into a map-ready collection.
+  const [heatmapController] = useState(() => new HeatmapController())
+  const [heatmapVisible, setHeatmapVisible] = useState(true)
+  const noPoints = analysis !== undefined && analysis.corridor_points.length === 0
+  const heatmap = useQuery({
+    queryKey: ['heatmap', analysis?.meta.request_id],
+    queryFn: ({ signal }) =>
+      fetchHeatmap(
+        {
+          points: analysis!.corridor_points,
+          departure_time: submission!.request.departure_time,
+          load_weight_lb: submission!.request.load_weight_lb,
+        },
+        signal,
+      ),
+    enabled: analysis !== undefined && submission !== null && !noPoints,
+    select: heatmapToGeoJson,
+    retry: false,
+    staleTime: Infinity,
+  })
+
   // Every analysis starts on its recommended route.
   const selectedRouteId =
     analysis &&
     (selection?.analysisId === analysis.meta.request_id ? selection.routeId : analysis.recommendation.route_id)
 
-  const submit = (request: AnalyzeRequest) => setSubmission((previous) => ({ id: (previous?.id ?? 0) + 1, request }))
+  const submit = (request: AnalyzeRequest) => {
+    heatmapController.setHour(0) // a new trip starts the heatmap at +0 h
+    setSubmission((previous) => ({ id: (previous?.id ?? 0) + 1, request }))
+  }
   const retry = () => setSubmission((previous) => previous && { ...previous, id: previous.id + 1 })
 
   return (
@@ -90,11 +120,27 @@ export default function App() {
               analysis && setSelection({ analysisId: analysis.meta.request_id, routeId })
             }
           >
-            {/* Phase 5: the heatmap layer goes here, inside the map. */}
+            {heatmap.data && !heatmap.data.isEmpty && (
+              <HeatmapLayer data={heatmap.data} visible={heatmapVisible} controller={heatmapController} />
+            )}
           </MapView>
         </Suspense>
-        {/* Phase 5: the heatmap slider goes in this strip along the bottom of the map. */}
-        <div className="map-bottom-slot" />
+        <div className="map-bottom-slot">
+          {analysis && !query.isFetching && (
+            <HeatmapControl
+              key={analysis.meta.request_id}
+              data={heatmap.data}
+              loading={heatmap.isFetching}
+              error={heatmap.isError ? heatmap.error : null}
+              noPoints={noPoints}
+              onRetry={() => void heatmap.refetch()}
+              controller={heatmapController}
+              visible={heatmapVisible}
+              onToggleVisible={() => setHeatmapVisible((visible) => !visible)}
+              loadWeight={submission!.request.load_weight_lb}
+            />
+          )}
+        </div>
       </main>
     </div>
   )

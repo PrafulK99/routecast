@@ -609,6 +609,54 @@ button.primary:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .spinner {
-    animation-duration: 2.4s;
+    animation: none; /* the "Loading..." text beside it says the same */
+  }
+}
+
+/* Touch layout (phones and tablets): tap targets of at least 44 px, and a legend that leaves the map visible. */
+@media (max-width: 800px) {
+  .panel input:not([type='checkbox']),
+  .panel select,
+  .panel button,
+  .map-bottom-slot button,
+  .map-bottom-slot input[type='range'] {
+    min-height: 44px;
+  }
+
+  .suggestions li {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .warnings summary {
+    padding: 11px 0;
+  }
+
+  .heatmap-toggle {
+    min-height: 44px;
+  }
+
+  .heatmap-toggle input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .footer a {
+    display: inline-block;
+    padding: 14px 0;
+  }
+
+  .map-legend {
+    top: 8px;
+    bottom: auto;
+    padding: 6px 8px;
+    font-size: 0.7rem;
+  }
+
+  .map-legend ul {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 2px 10px;
   }
 }

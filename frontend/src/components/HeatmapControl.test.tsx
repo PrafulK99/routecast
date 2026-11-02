@@ -287,6 +287,23 @@ describe('states', () => {
   })
 })
 
+describe('departure adjusted', () => {
+  test('tells the user when the departure had to move to the next full hour', () => {
+    setup({ data: { ...data, departureAdjusted: true } })
+
+    // The sample starts at 14:00 UTC, which is 7:00 AM in Phoenix.
+    expect(plain(screen.getByRole('status', { name: '' }).textContent)).toContain(
+      'The original departure time has passed, so the heatmap starts at Nov 2, 7:00 AM MST instead.',
+    )
+  })
+
+  test('says nothing when the original departure was used', () => {
+    setup()
+
+    expect(screen.queryByText(/original departure time has passed/)).toBeNull()
+  })
+})
+
 describe('legend and note', () => {
   test('explains the colors with level names beside them', () => {
     setup()

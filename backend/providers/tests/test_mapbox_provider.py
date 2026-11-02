@@ -169,6 +169,30 @@ def test_no_route_raises_no_route_and_skips_the_fallback(status):
     assert len(calls) == 1
 
 
+def test_a_trip_beyond_the_distance_limit_is_no_route_not_a_routing_outage():
+    # Real Mapbox answer for Los Angeles to Sydney: HTTP 422, code InvalidInput.
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            422, json={"code": "InvalidInput", "message": "Route exceeds maximum distance limitation"}
+        )
+
+    with pytest.raises(NoRouteError):
+        get(make_provider(handler))
+
+    assert len(calls) == 1  # retrying a trip that is too far would never help
+
+
+def test_other_invalid_input_is_still_a_routing_failure():
+    def handler(request):
+        return httpx.Response(422, json={"code": "InvalidInput", "message": "Coordinate is invalid"})
+
+    with pytest.raises(RoutingUnavailableError):
+        get(make_provider(handler))
+
+
 def test_token_is_required_by_from_env(monkeypatch):
     monkeypatch.delenv("MAPBOX_API_TOKEN", raising=False)
     with pytest.raises(RuntimeError):

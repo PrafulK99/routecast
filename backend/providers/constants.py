@@ -8,6 +8,9 @@ MAPBOX_DIRECTIONS_URL = "https://api.mapbox.com/directions/v5/mapbox/driving"
 MAPBOX_TIMEOUT_S = 10.0
 ROUTE_CACHE_TTL_S = 600
 NO_ROUTE_CODES = ("NoRoute", "NoSegment")
+# Mapbox answers HTTP 422 "Route exceeds maximum distance limitation" for trips too far to route
+# (for example across an ocean): the same answer to the user as "no road between the points".
+DISTANCE_LIMIT_MESSAGE = "maximum distance"
 
 # Via-point fallback
 MAX_ROUTES = 3

@@ -10,6 +10,7 @@ export interface HeatmapData {
   startHour: string // UTC, departure rounded down to the hour
   hours: number // 49: the slider runs 0 to hours - 1
   isEmpty: boolean
+  departureAdjusted: boolean // the request used the next full hour, because the original had passed
 }
 
 export function levelProperty(hour: number): string {
@@ -44,5 +45,17 @@ export function heatmapToGeoJson(response: HeatmapResponse): HeatmapData {
     startHour: response.start_hour,
     hours: response.hours,
     isEmpty: features.length === 0,
+    departureAdjusted: false,
   }
+}
+
+/** What the heatmap query fetches: the response, and whether its departure was replaced. */
+export interface HeatmapFetch {
+  response: HeatmapResponse
+  adjusted: boolean
+}
+
+/** The query's `select`: a module-level function, so the parsed collection is built once per response. */
+export function selectHeatmap({ response, adjusted }: HeatmapFetch): HeatmapData {
+  return { ...heatmapToGeoJson(response), departureAdjusted: adjusted }
 }

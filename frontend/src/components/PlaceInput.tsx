@@ -69,6 +69,7 @@ export function PlaceInput({ label, value, onChange, error }: Props) {
       choose(suggestions[active])
     } else if (event.key === 'Escape') {
       setOpen(false)
+      setActive(-1) // reopening starts from the first suggestion, not from where it was
     }
   }
 

@@ -1,15 +1,17 @@
 """The five scenario fixtures from docs/DESIGN.md (Testing), through the endpoint."""
 
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
 from .helpers import (
+    LINE_A,
     DEPARTURE,
     ScenarioWeather,
     analyze_payload,
     calm,
+    routes,
     storm_on_route_a,
     three_routes,
     two_routes,
@@ -131,3 +133,34 @@ def test_no_coverage_warning_when_the_recommended_route_is_fully_covered(client,
     providers(two_routes(), ScenarioWeather(calm))
 
     assert analyze(client)["meta"]["warnings"] == []
+
+
+# Edge cases from docs/DESIGN.md, through the endpoint (the domain tests pin the same rules directly).
+@pytest.mark.parametrize(
+    "wind_mph, load, level",
+    [
+        (40, 0, 2),  # load 0 is allowed; 40 mph alone is High
+        (55, 0, 4),  # 55 mph stops any load, even an empty truck
+        (47, 0, 3),
+        (47, 30_000, 3),  # exactly 30,000 lb: the rule needs strictly more, so still Severe
+        (47, 30_001, 4),  # one pound over: No Travel
+    ],
+)
+def test_load_rules_at_the_exact_weights_through_the_endpoint(client, providers, wind_mph, load, level):
+    providers(two_routes(), ScenarioWeather(uniform(wind(wind_mph))))
+
+    body = analyze(client, load_weight_lb=load)
+
+    assert [route["summary"]["worst_level"] for route in body["routes"]] == [level, level]
+
+
+def test_etas_assume_continuous_driving_with_no_rest(client, providers):
+    # About 29 hours at the truck factor: longer than a driving day, and no rest is added.
+    providers(routes((LINE_A, 400.0)), ScenarioWeather(calm))
+
+    route = analyze(client)["routes"][0]
+
+    assert route["duration_s"] > 24 * 3600
+    departure = datetime.strptime(route["departure_time"], "%Y-%m-%dT%H:%M:%SZ")
+    arrival = datetime.strptime(route["arrival_time"], "%Y-%m-%dT%H:%M:%SZ")
+    assert (arrival - departure).total_seconds() == pytest.approx(route["duration_s"], abs=1)

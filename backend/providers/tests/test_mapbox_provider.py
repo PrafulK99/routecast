@@ -6,7 +6,7 @@ import pytest
 
 from providers.errors import NoRouteError, RoutingUnavailableError
 from providers.fakes import InMemoryCache
-from providers.interfaces import WARNING_MISSING_ANNOTATIONS, WARNING_ROUTE_FALLBACK, warning_few_routes
+from providers.interfaces import WARNING_MISSING_ANNOTATIONS, warning_few_routes
 from providers.mapbox import MapboxRoutingProvider, parse_directions, via_offset_miles, without_duplicates
 
 from .helpers import directions_body, json_response, mapbox_body, waypoints
@@ -320,8 +320,7 @@ def test_via_fallback_fills_the_third_route():
     assert [(r.id, r.label) for r in result.routes] == [
         ("route-1", "Route A"), ("route-2", "Route B"), ("route-3", "Route C"),
     ]  # fmt: skip
-    assert WARNING_ROUTE_FALLBACK in result.warnings
-    assert not any("could be found" in w for w in result.warnings)
+    assert result.warnings == ()  # three routes: nothing to warn about
     assert len(stub.base_calls) == 1
 
 
@@ -382,7 +381,6 @@ def test_candidates_hugging_the_primary_are_dropped():
     result = provider.get_routes(ORIGIN, DESTINATION)
 
     assert len(result.routes) == 1
-    assert WARNING_ROUTE_FALLBACK not in result.warnings
     assert result.warnings == (warning_few_routes(1),)
 
 
@@ -471,7 +469,7 @@ def test_an_identical_provider_route_is_a_duplicate_and_candidates_fill_the_slot
     result = provider.get_routes(ORIGIN, DESTINATION)
 
     assert len(result.routes) == 3
-    assert WARNING_ROUTE_FALLBACK in result.warnings
+    assert result.warnings == ()
     assert len(stub.requests) <= 5
     assert all(any(lon != -97.0 for _, lon in r.geometry) for r in result.routes[1:])  # real detours
 

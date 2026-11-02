@@ -36,7 +36,6 @@ from .constants import (
 from .errors import NoRouteError, ProviderError, RoutingUnavailableError
 from .interfaces import (
     WARNING_MISSING_ANNOTATIONS,
-    WARNING_ROUTE_FALLBACK,
     Cache,
     LatLon,
     RoutingResult,
@@ -187,7 +186,6 @@ class MapboxRoutingProvider:
         }
         kept = list(routes)
         warnings = list(warnings)
-        used_fallback = False
         overlaps: dict[tuple[int, int], float] = {}  # (candidate, kept route) -> overlap, each worked out once
         while len(kept) < MAX_ROUTES and remaining:
             scored = []
@@ -202,10 +200,7 @@ class MapboxRoutingProvider:
             chosen = min(scored)[2]
             route, route_warnings = remaining.pop(chosen)
             kept.append(route)
-            used_fallback = True
             warnings += [w for w in route_warnings if w not in warnings]
-        if used_fallback:
-            warnings.append(WARNING_ROUTE_FALLBACK)
         return kept, warnings
 
     def _via_route(

@@ -53,8 +53,9 @@ def _time_clause(winner: RouteSummary, runner_up: RouteSummary) -> str:
     return f"{abs(minutes)} minutes {'slower' if minutes > 0 else 'faster'}"
 
 
-def _reason(winner: RouteSummary, runner_up: RouteSummary) -> str:
-    """Built from the first key where the winner differs from the runner-up."""
+def _reason(winner: RouteSummary, runner_up: RouteSummary, route_count: int) -> str:
+    """Built from the first key where the winner differs from the runner-up.
+    Wording that speaks of "both" routes is only used when there are exactly two."""
     time_clause = _time_clause(winner, runner_up)
     win_key, other_key = _sort_key(winner), _sort_key(runner_up)
 
@@ -76,9 +77,16 @@ def _reason(winner: RouteSummary, runner_up: RouteSummary) -> str:
             )
             return text + (f", and is {time_clause}." if time_clause else ".")
 
-    weather = "Weather is equal" if winner.avg_risk is not None else "Neither route has forecast data"
+    two = route_count == 2
+    if winner.avg_risk is not None:
+        weather = "Weather is equal"
+    else:
+        weather = "Neither route has forecast data" if two else "No route has forecast data"
     if time_clause:
-        return f"{weather} on both routes; {winner.label} is {time_clause}."
+        scope = "on both routes" if two else "across the routes"
+        if winner.avg_risk is None and not two:
+            scope = ""  # "No route has forecast data across the routes" would repeat itself
+        return f"{weather}{' ' + scope if scope else ''}; {winner.label} is {time_clause}."
     if winner.distance_mi != runner_up.distance_mi:
         return f"{weather} and travel time is equal; {winner.label} is shorter."
     return f"The routes are equal on every measure; {winner.label} is listed first."
@@ -116,7 +124,7 @@ def rank_routes(summaries: Sequence[RouteSummary]) -> Recommendation:
     if len(ordered) == 1:
         reasons.append("Only one route was available, so no alternatives were compared.")
     else:
-        reasons.append(_reason(winner, ordered[1]))
+        reasons.append(_reason(winner, ordered[1], len(ordered)))
 
     return Recommendation(
         route_id=winner.route_id,

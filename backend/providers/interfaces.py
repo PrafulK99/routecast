@@ -13,7 +13,6 @@ Series = Mapping[datetime, WeatherSample]
 WARNING_MISSING_ANNOTATIONS = (
     "Mapbox returned no usable per-segment data, so travel times are spread evenly by distance."
 )
-WARNING_ROUTE_FALLBACK = "Fewer than three routes came back, so extra routes were found via waypoints."
 
 
 def warning_few_routes(count: int) -> str:

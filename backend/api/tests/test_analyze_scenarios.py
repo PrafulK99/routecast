@@ -44,7 +44,7 @@ def test_calm_day_recommends_the_fastest_route(client, providers):
     assert recommendation["route_id"] == "route-1"
     assert recommendation["all_blocked"] is False
     assert re.fullmatch(
-        r"Weather is equal on both routes; Route A is \d+ minutes faster\.", recommendation["reasons"][0]
+        r"Weather is equal across the routes; Route A is \d+ minutes faster\.", recommendation["reasons"][0]
     )
     assert [entry["route_id"] for entry in recommendation["ranking"]] == ["route-1", "route-2", "route-3"]
     assert body["meta"]["warnings"] == []

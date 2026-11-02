@@ -234,6 +234,27 @@ def test_reason_when_weather_is_equal_and_time_decides():
     )
 
 
+def test_reason_when_weather_is_equal_across_three_routes():
+    a = summary("Route A", 0, duration_s=3600)
+    b = summary("Route B", 1, duration_s=3600 + 12 * 60)
+    c = summary("Route C", 2, duration_s=3600 + 30 * 60)
+
+    assert rank_routes([a, b, c]).reasons == (
+        "Weather is equal across the routes; Route A is 12 minutes faster.",
+    )
+
+
+def test_reason_without_forecast_data_does_not_say_both_for_three_routes():
+    def bare(label, index, duration_s):
+        return summary(label, index, avg_risk=None, duration_s=duration_s)
+
+    two = rank_routes([bare("Route A", 0, 3600), bare("Route B", 1, 3600 + 600)]).reasons[0]
+    three = rank_routes([bare("Route A", 0, 3600), bare("Route B", 1, 3600 + 600), bare("Route C", 2, 7200)]).reasons[0]
+
+    assert "both" in two
+    assert three == "No route has forecast data; Route A is 10 minutes faster."
+
+
 def test_reason_when_weather_and_time_are_equal_distance_decides():
     a = summary("Route A", 0, distance_mi=120)
     b = summary("Route B", 1, distance_mi=100)

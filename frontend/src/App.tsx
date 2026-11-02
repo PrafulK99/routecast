@@ -84,12 +84,12 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside className="panel">
-        <header>
-          <h1>Routecast</h1>
-          <p className="tagline">Weather-aware truck routing</p>
-        </header>
+      <header className="app-header">
+        <h1>Routecast</h1>
+        <p className="tagline">Weather-aware truck routing</p>
+      </header>
 
+      <aside className="panel">
         <TripForm onSubmit={submit} />
 
         <div className="results" aria-live="polite">

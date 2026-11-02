@@ -2,6 +2,7 @@ import type { Route } from '../api/types'
 import { formatDuration, formatMiles, formatPercent } from '../format'
 import { routeColor } from '../map/geojson'
 import { barSegments } from '../riskBar'
+import { Icon } from './Icon'
 
 interface Props {
   routes: Route[]
@@ -29,12 +30,12 @@ export function RouteCards({ routes, recommendedId, selectedId, onSelect }: Prop
                 <strong>{route.label}</strong>
                 {route.id === recommendedId && (
                   <span className="badge badge-recommended">
-                    <span aria-hidden="true">★</span> Recommended
+                    <Icon name="star" /> Recommended
                   </span>
                 )}
                 {summary.blocked && (
                   <span className="badge badge-blocked">
-                    <span aria-hidden="true">⛔</span> Blocked
+                    <Icon name="ban" /> Blocked
                   </span>
                 )}
               </span>

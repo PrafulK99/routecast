@@ -1,16 +1,42 @@
 :root {
-  --ink: #1f2933;
-  --muted: #5b6770;
-  --line: #d5dbe0;
+  --ink: #172230;
+  --muted: #4a5865; /* 6.4:1 on --page, 7:1 on white */
+  --line: #d6dee6;
+  --line-strong: #9aa8b5;
   --surface: #ffffff;
-  --page: #f4f6f8;
-  --accent: #0072b2;
+  --surface-soft: #f5f8fb;
+  --page: #eef2f6;
+  --accent: #0b5c8f; /* 7:1 on white */
+  --accent-hover: #084a73;
+  --accent-soft: #e3eef7;
   --warn-bg: #fff4e5;
   --warn-ink: #7a3b00;
   --danger-bg: #fdecea;
   --danger-ink: #8a1c13;
+  --ok-bg: #d8f0e6;
+  --ok-ink: #00513a;
+  --label-ink: #3a4856; /* 9.4:1 on white */
+  --ink-soft: #2c3a47;
+  --info-ink: #00466e;
+  --on-accent: #ffffff;
+  --accent-active: #063a5b;
+  --accent-pressed: #cfe1ef;
+  --field-edge: #7d8b98; /* 3.3:1 against the field fill */
+  --track: #e5e9ec;
+  --skeleton-hi: #f2f4f6;
+  --spinner-track: #c5ccd2;
+  --hatch: rgb(255 255 255 / 70%);
+  --swatch-edge: rgb(0 0 0 / 35%);
+  --legend-bg: rgb(255 255 255 / 96%);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgb(16 32 48 / 6%), 0 2px 8px rgb(16 32 48 / 6%);
+  --shadow-float: 0 4px 16px rgb(16 32 48 / 14%);
+  --shadow-up: 0 -2px 8px rgb(16 32 48 / 6%);
+  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'SF Mono', Menlo, monospace;
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
   line-height: 1.4;
 }
 
@@ -18,6 +44,13 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* A safety net: nothing should be wider than the screen, but if something is, clip it
+   instead of letting the whole page scroll sideways. */
+html,
+body {
+  overflow-x: clip;
 }
 
 body {
@@ -30,6 +63,11 @@ input,
 select {
   font: inherit;
   color: inherit;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
 }
 
 :focus-visible {
@@ -45,4 +83,14 @@ select {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

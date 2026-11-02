@@ -1,4 +1,5 @@
 import { describeError } from '../api/errorMessages'
+import { Icon } from './Icon'
 
 interface Props {
   error: unknown
@@ -15,7 +16,7 @@ export function ErrorPanel({ error, onRetry }: Props) {
     <div className="error-panel" role="alert">
       <p>
         <strong>
-          <span aria-hidden="true">⚠</span> {message}
+          <Icon name="alert" /> {message}
         </strong>
       </p>
       {fieldMessages.length > 0 && (

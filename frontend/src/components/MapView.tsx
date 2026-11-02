@@ -126,8 +126,7 @@ export default function MapView({ analysis, selectedRouteId, onSelectRoute, chil
           <Popup
             longitude={openCheckpoint.lon}
             latitude={openCheckpoint.lat}
-            anchor="bottom"
-            offset={12}
+            offset={12} // no fixed anchor: Mapbox opens the popup on whichever side fits the map
             maxWidth="280px"
             closeOnClick={false}
             onClose={() => setPopup(null)}

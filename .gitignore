@@ -19,3 +19,5 @@ dist/
 
 # Throwaway spikes
 scratch/
+
+docs/design/

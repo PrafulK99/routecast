@@ -1,4 +1,5 @@
 import type { AnalyzeResponse } from '../api/types'
+import { Icon } from './Icon'
 
 interface Props {
   analysis: AnalyzeResponse
@@ -12,11 +13,14 @@ export function RecommendationBanner({ analysis }: Props) {
   const partial = routes.some((route) => route.summary.coverage_pct < 100)
 
   return (
-    <section className="banner" aria-labelledby="recommendation-title">
+    <section
+      className={`banner${recommendation.all_blocked ? ' banner-blocked' : ''}`}
+      aria-labelledby="recommendation-title"
+    >
       {recommendation.all_blocked && (
         <div className="banner-alert" role="alert">
           <strong>
-            <span aria-hidden="true">⚠</span> No safe route: every route has No Travel conditions
+            <Icon name="alert" /> No safe route: every route has No Travel conditions
           </strong>
           <p>Do not treat the recommended route as safe. Delay the trip or change the plan.</p>
         </div>

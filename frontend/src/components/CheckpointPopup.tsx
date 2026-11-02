@@ -15,30 +15,43 @@ export function CheckpointPopup({ checkpoint, time }: Props) {
   return (
     <div className="popup">
       <p className="popup-title">
-        <strong>Checkpoint {checkpoint.index + 1}</strong> · mile {checkpoint.mile.toFixed(1)}
+        <strong>Checkpoint {checkpoint.index + 1}</strong>
+        <span className="popup-mile"> · mile {checkpoint.mile.toFixed(1)}</span>
       </p>
       <p className="popup-level">
-        <span
-          className={`swatch${unavailable ? ' hollow' : ''}`}
-          style={unavailable ? { borderColor: info.color } : { background: info.color }}
-          aria-hidden="true"
-        />
-        <strong>{info.name}</strong>
-        {risk.factor && <span> (set by {risk.factor})</span>}
+        <span className="level-pill">
+          <span
+            className={`swatch${unavailable ? ' hollow' : ''}`}
+            style={unavailable ? { borderColor: info.color } : { background: info.color }}
+            aria-hidden="true"
+          />
+          <strong>{info.name}</strong>
+        </span>
+        {risk.factor && <span className="popup-factor"> (set by {risk.factor})</span>}
       </p>
       <dl>
-        <dt>Arrival (ETA)</dt>
-        <dd>{formatLocalTime(checkpoint.eta, time)}</dd>
-        <dt>Forecast hour</dt>
-        <dd>{formatLocalTime(checkpoint.forecast_hour, time)}</dd>
+        <div>
+          <dt>Arrival (ETA)</dt>
+          <dd>{formatLocalTime(checkpoint.eta, time)}</dd>
+        </div>
+        <div>
+          <dt>Forecast hour</dt>
+          <dd>{formatLocalTime(checkpoint.forecast_hour, time)}</dd>
+        </div>
         {!unavailable && (
           <>
-            <dt>Wind</dt>
-            <dd>{formatWind(checkpoint.wind_mph)}</dd>
-            <dt>Rain</dt>
-            <dd>{formatRate(checkpoint.rain_in_hr)}</dd>
-            <dt>Snow</dt>
-            <dd>{formatRate(checkpoint.snow_in_hr)}</dd>
+            <div>
+              <dt>Wind</dt>
+              <dd>{formatWind(checkpoint.wind_mph)}</dd>
+            </div>
+            <div>
+              <dt>Rain</dt>
+              <dd>{formatRate(checkpoint.rain_in_hr)}</dd>
+            </div>
+            <div>
+              <dt>Snow</dt>
+              <dd>{formatRate(checkpoint.snow_in_hr)}</dd>
+            </div>
           </>
         )}
       </dl>

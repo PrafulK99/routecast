@@ -4,6 +4,7 @@ import { type TimeOptions, formatLocalTime } from '../format'
 import { PLAY_INTERVAL_MS, type HeatmapController } from '../heatmap/controller'
 import { type HeatmapData, hourLabel } from '../heatmap/data'
 import { RISK_LEVELS } from '../risk/levels'
+import { Icon } from './Icon'
 
 interface Props {
   data: HeatmapData | undefined
@@ -31,7 +32,7 @@ export function HeatmapControl({ data, loading, error, noPoints, onRetry, visibl
     body = (
       <div className="heatmap-message heatmap-error" role="alert">
         <span>
-          <span aria-hidden="true">⚠</span> Weather heatmap unavailable: {describeError(error).message} The routes above
+          <Icon name="alert" /> Weather heatmap unavailable: {describeError(error).message} The routes above
           are not affected.
         </span>
         <button type="button" onClick={onRetry}>
@@ -119,7 +120,7 @@ function HeatmapPlayer({ data, controller, loadWeight, time }: PlayerProps) {
     <div className="heatmap-player">
       <div className="heatmap-row">
         <button type="button" className="play-button" onClick={togglePlay}>
-          <span aria-hidden="true">{playing ? '⏸' : '▶'}</span> {playing ? 'Pause' : 'Play'}
+          <Icon name={playing ? 'pause' : 'play'} /> {playing ? 'Pause' : 'Play'}
         </button>
         <input
           ref={inputRef}

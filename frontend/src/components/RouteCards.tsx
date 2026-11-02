@@ -1,7 +1,8 @@
 import type { Route } from '../api/types'
-import { formatDuration, formatMiles, formatPercent } from '../format'
+import { formatDuration, formatLocalTime, formatMiles, formatPercent } from '../format'
 import { routeColor } from '../map/geojson'
 import { barSegments } from '../riskBar'
+import { Icon } from './Icon'
 
 interface Props {
   routes: Route[]
@@ -16,6 +17,7 @@ export function RouteCards({ routes, recommendedId, selectedId, onSelect }: Prop
       {routes.map((route, index) => {
         const segments = barSegments(route)
         const summary = route.summary
+        const arrival = route.checkpoints.at(-1)?.eta // the destination checkpoint's ETA
         return (
           <li key={route.id}>
             <button
@@ -24,24 +26,25 @@ export function RouteCards({ routes, recommendedId, selectedId, onSelect }: Prop
               aria-pressed={route.id === selectedId}
               onClick={() => onSelect(route.id)}
             >
-              <span className="route-swatch" style={{ background: routeColor(index) }} aria-hidden="true" />
               <span className="card-head">
-                <strong>{route.label}</strong>
+                <span className="route-key" style={{ background: routeColor(index) }} aria-hidden="true" />
+                <span className="route-name">{route.label}</span>
                 {route.id === recommendedId && (
                   <span className="badge badge-recommended">
-                    <span aria-hidden="true">★</span> Recommended
+                    <Icon name="star" /> Recommended
                   </span>
                 )}
                 {summary.blocked && (
                   <span className="badge badge-blocked">
-                    <span aria-hidden="true">⛔</span> Blocked
+                    <Icon name="ban" /> Blocked
                   </span>
                 )}
               </span>
               <span className="card-stats">
-                <span>{formatDuration(route.duration_s)}</span>
+                <span className="card-duration">{formatDuration(route.duration_s)}</span>
                 <span>{formatMiles(route.distance_mi)}</span>
               </span>
+              {arrival && <span className="card-eta">Arrives {formatLocalTime(arrival)}</span>}
               <span
                 className="risk-bar"
                 role="img"

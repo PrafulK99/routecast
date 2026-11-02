@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { vi } from 'vitest'
-import { analyzeSample } from '../api/fixtures/check'
-import type { AnalyzeRequest, AnalyzeResponse } from '../api/types'
+import { analyzeSample, heatmapSample } from '../api/fixtures/check'
+import type { AnalyzeRequest, AnalyzeResponse, HeatmapRequest, HeatmapResponse } from '../api/types'
 import { SEARCH_DELAY_MS } from '../components/PlaceInput'
 
 export function renderWithClient(ui: ReactElement) {
@@ -63,14 +63,30 @@ export interface AnalyzeCall {
   signal: AbortSignal
 }
 
-/** Routes fetch by URL: health, geocoding, and the given /api/analyze handler. */
-export function installFetch(analyze: (call: AnalyzeCall) => Response | Promise<Response> = () => jsonResponse(threeRouteAnalysis())) {
+export interface HeatmapCall {
+  request: HeatmapRequest
+  signal: AbortSignal
+}
+
+/** The recorded heatmap sample, as a fresh copy. */
+export function heatmapResponse(): HeatmapResponse {
+  return structuredClone(heatmapSample)
+}
+
+/** Routes fetch by URL: health, geocoding, and the given /api/analyze and /api/heatmap handlers. */
+export function installFetch(
+  analyze: (call: AnalyzeCall) => Response | Promise<Response> = () => jsonResponse(threeRouteAnalysis()),
+  heatmap: (call: HeatmapCall) => Response | Promise<Response> = () => jsonResponse(heatmapResponse()),
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes('/api/health')) return jsonResponse({ status: 'ok' })
     if (url.includes('/geocode/v6/forward')) return jsonResponse(geocodeBody(new URL(url).searchParams.get('q') ?? ''))
     if (url.includes('/api/analyze')) {
       return analyze({ request: JSON.parse(String(init?.body)), signal: init?.signal as AbortSignal })
+    }
+    if (url.includes('/api/heatmap')) {
+      return heatmap({ request: JSON.parse(String(init?.body)), signal: init?.signal as AbortSignal })
     }
     throw new Error(`unexpected fetch: ${url}`)
   })

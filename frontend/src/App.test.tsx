@@ -1,11 +1,14 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import App from './App'
+import { hourLabel } from './heatmap/data'
 import {
   type AnalyzeCall,
+  type HeatmapCall,
   apiError,
   callsTo,
   deferred,
+  heatmapResponse,
   installFetch,
   jsonResponse,
   renderWithClient,
@@ -46,8 +49,11 @@ const cardList = () => screen.findByRole('list', { name: 'Routes' })
 const cards = async () => within(await cardList()).getAllByRole('button')
 const card = async (label: string) => (await cards()).find((c) => c.textContent?.includes(label))!
 
-async function startApp(analyze?: (call: AnalyzeCall) => Response | Promise<Response>) {
-  const fetchMock = installFetch(analyze)
+async function startApp(
+  analyze?: (call: AnalyzeCall) => Response | Promise<Response>,
+  heatmap?: (call: HeatmapCall) => Response | Promise<Response>,
+) {
+  const fetchMock = installFetch(analyze, heatmap)
   renderWithClient(<App />)
   await map()
   return fetchMock
@@ -381,5 +387,174 @@ describe('overlapping requests', () => {
 
     expect((await map()).dataset.analysis).toBe('req-new')
     expect(await cards()).toHaveLength(3)
+  })
+})
+
+describe('weather heatmap', () => {
+  const heatmapRegion = () => screen.findByRole('region', { name: 'Weather heatmap' })
+  const heatmapSlider = () => screen.findByRole('slider', { name: 'Hours after departure' })
+  const labelText = () => (document.querySelector('.heatmap-label')?.textContent ?? '').replace(/\s/g, ' ')
+
+  test('is requested once after the analysis, with its corridor points, departure time and load', async () => {
+    const analyzeCalls: AnalyzeCall[] = []
+    const heatmapCalls: HeatmapCall[] = []
+    const fetchMock = await startApp(
+      (call) => {
+        analyzeCalls.push(call)
+        return jsonResponse(threeRouteAnalysis())
+      },
+      (call) => {
+        heatmapCalls.push(call)
+        return jsonResponse(heatmapResponse())
+      },
+    )
+
+    await submitTrip()
+    await heatmapSlider()
+
+    expect(callsTo(fetchMock, '/api/heatmap')).toHaveLength(1)
+    const [url, init] = callsTo(fetchMock, '/api/heatmap')[0]
+    expect(String(url)).toMatch(/\/api\/heatmap$/)
+    expect(init?.method).toBe('POST')
+    expect(heatmapCalls[0].request).toEqual({
+      points: threeRouteAnalysis().corridor_points,
+      departure_time: analyzeCalls[0].request.departure_time,
+      load_weight_lb: 40000,
+    })
+  })
+
+  test('the route results never wait for it: cards show while the heatmap is still loading', async () => {
+    const reply = deferred<Response>()
+    await startApp(undefined, () => reply.promise)
+
+    await submitTrip()
+
+    expect(await cards()).toHaveLength(3)
+    expect((await map()).dataset.analysis).toBe('req-1')
+    expect(within(await heatmapRegion()).getByText(/Loading weather heatmap/)).toBeTruthy()
+    expect(screen.queryByRole('slider')).toBeNull()
+
+    await act(async () => reply.resolve(jsonResponse(heatmapResponse())))
+
+    expect(await heatmapSlider()).toBeTruthy()
+    expect(screen.queryByText(/Loading weather heatmap/)).toBeNull()
+  })
+
+  test('shows the slider with the first hour of the response and the load note', async () => {
+    await startApp()
+
+    await submitTrip()
+    await heatmapSlider()
+
+    expect(labelText()).toBe(hourLabel(heatmapResponse().start_hour, 0).replace(/\s/g, ' '))
+    expect(screen.getByText(/Risk shown is for your load weight of 40,000 lb/)).toBeTruthy()
+  })
+
+  test('a failure shows a message and Retry while the routes stay usable; Retry loads it', async () => {
+    const replies = [apiError(502, 'weather_unavailable', 'down'), jsonResponse(heatmapResponse())]
+    const calls: HeatmapCall[] = []
+    await startApp(undefined, (call) => {
+      calls.push(call)
+      return replies.shift()!
+    })
+
+    await submitTrip()
+
+    const alert = await within(await heatmapRegion()).findByRole('alert')
+    expect(alert.textContent).toContain('Weather heatmap unavailable')
+    expect(await cards()).toHaveLength(3) // the routes are unaffected
+    fireEvent.click(await card('Route A')) // and still selectable
+    expect((await map()).dataset.selected).toBe('route-1')
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+
+    expect(await heatmapSlider()).toBeTruthy()
+    expect(calls).toHaveLength(2)
+    expect(screen.queryByText(/Weather heatmap unavailable/)).toBeNull()
+  })
+
+  test('a network failure of the heatmap is reported the same way', async () => {
+    await startApp(undefined, () => Promise.reject(new TypeError('Failed to fetch')))
+
+    await submitTrip()
+
+    expect((await within(await heatmapRegion()).findByRole('alert')).textContent).toContain("Can't reach the server")
+    expect(await cards()).toHaveLength(3)
+  })
+
+  test('a new analysis cancels the heatmap request in flight, and its late reply is ignored', async () => {
+    const first = deferred<Response>()
+    const second = deferred<Response>()
+    const calls: HeatmapCall[] = []
+    let analyses = 0
+    await startApp(
+      () => jsonResponse(threeRouteAnalysis(`req-${++analyses}`)),
+      (call) => {
+        calls.push(call)
+        return (calls.length === 1 ? first : second).promise
+      },
+    )
+    await submitTrip()
+    await vi.waitFor(() => expect(calls).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze routes' }))
+    await vi.waitFor(() => expect(calls).toHaveLength(2))
+
+    expect(calls[0].signal.aborted).toBe(true)
+    expect(calls[1].signal.aborted).toBe(false)
+
+    await act(async () => second.resolve(jsonResponse({ ...heatmapResponse(), start_hour: '2026-11-02T20:00:00Z' })))
+    await heatmapSlider()
+    // The cancelled request's reply arrives afterwards, as if the browser had ignored the abort.
+    await act(async () => first.resolve(jsonResponse({ ...heatmapResponse(), start_hour: '2026-11-03T08:00:00Z' })))
+    await advance(100)
+
+    expect(labelText()).toBe(hourLabel('2026-11-02T20:00:00Z', 0).replace(/\s/g, ' '))
+    expect((await map()).dataset.analysis).toBe('req-2')
+  })
+
+  test('a new analysis starts the slider at +0 h again', async () => {
+    let analyses = 0
+    await startApp(() => jsonResponse(threeRouteAnalysis(`req-${++analyses}`)))
+    await submitTrip()
+    fireEvent.change(await heatmapSlider(), { target: { value: '12' } })
+    await advance(50)
+    expect(labelText()).toContain('(+12 h)')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze routes' }))
+    await vi.waitFor(() => expect(labelText()).toContain('(+0 h)'))
+    expect((await heatmapSlider() as HTMLInputElement).value).toBe('0')
+  })
+
+  test('no corridor points means no request and a plain message', async () => {
+    const empty = threeRouteAnalysis()
+    empty.corridor_points = []
+    const fetchMock = await startApp(() => jsonResponse(empty))
+
+    await submitTrip()
+    await cards()
+
+    expect(callsTo(fetchMock, '/api/heatmap')).toHaveLength(0)
+    expect(within(await heatmapRegion()).getByText(/No corridor points/)).toBeTruthy()
+    expect(screen.queryByRole('slider')).toBeNull()
+  })
+
+  test('an empty heatmap response shows the same message', async () => {
+    await startApp(undefined, () => jsonResponse({ ...heatmapResponse(), points: [] }))
+
+    await submitTrip()
+
+    expect(await within(await heatmapRegion()).findByText(/No corridor points/)).toBeTruthy()
+    expect(await cards()).toHaveLength(3)
+  })
+
+  test('is not requested when the analysis fails', async () => {
+    const fetchMock = await startApp(() => apiError(422, 'no_route', 'none'))
+
+    await submitTrip()
+    await screen.findByText(/No drivable route was found/)
+
+    expect(callsTo(fetchMock, '/api/heatmap')).toHaveLength(0)
+    expect(screen.queryByRole('region', { name: 'Weather heatmap' })).toBeNull()
   })
 })

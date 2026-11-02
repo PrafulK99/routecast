@@ -4,6 +4,7 @@ import Map, { Layer, type MapMouseEvent, type MapRef, Popup, Source } from 'reac
 import type { AnalyzeResponse } from '../api/types'
 import { MAPBOX_TOKEN } from '../config'
 import { boundsOf, checkpointsGeoJson, routesGeoJson } from '../map/geojson'
+import { CHECKPOINT_LAYER, ROUTE_CASING_LAYER, ROUTE_LAYER } from '../map/layers'
 import { CheckpointPopup } from './CheckpointPopup'
 import { RiskLegend } from './RiskLegend'
 
@@ -15,8 +16,6 @@ export interface MapViewProps {
   children?: ReactNode
 }
 
-const ROUTE_LAYER = 'route-line'
-const CHECKPOINT_LAYER = 'checkpoint-circle'
 const isSelected = ['==', ['get', 'selected'], 1]
 const isUnavailable = ['==', ['get', 'unavailable'], 1]
 
@@ -87,7 +86,7 @@ export default function MapView({ analysis, selectedRouteId, onSelectRoute, chil
       >
         <Source id="routes" type="geojson" data={routeData}>
           <Layer
-            id="route-casing"
+            id={ROUTE_CASING_LAYER}
             type="line"
             layout={{ 'line-cap': 'round', 'line-join': 'round' }}
             paint={{

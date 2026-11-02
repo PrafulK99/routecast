@@ -1,5 +1,11 @@
 import { API_BASE_URL } from '../config'
-import type { AnalyzeRequest, AnalyzeResponse, ApiErrorBody } from './types'
+import type {
+  AnalyzeRequest,
+  AnalyzeResponse,
+  ApiErrorBody,
+  HeatmapRequest,
+  HeatmapResponse,
+} from './types'
 
 export const ANALYZE_TIMEOUT_MS = 90_000
 
@@ -47,11 +53,11 @@ async function readApiError(response: Response): Promise<ApiError> {
 }
 
 /**
- * POST /api/analyze. `signal` is TanStack Query's: it aborts when a newer analysis
- * starts, and that cancellation is rethrown untouched. A 90 second timeout is
- * linked to the same request and reported as its own kind of failure.
+ * POST JSON and read the reply. `signal` is TanStack Query's: it aborts when a newer
+ * analysis starts, and that cancellation is rethrown untouched. A 90 second timeout
+ * is linked to the same request and reported as its own kind of failure.
  */
-export async function analyze(request: AnalyzeRequest, signal: AbortSignal): Promise<AnalyzeResponse> {
+async function postJson<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {
   const controller = new AbortController()
   let timedOut = false
   const timer = setTimeout(() => {
@@ -65,10 +71,10 @@ export async function analyze(request: AnalyzeRequest, signal: AbortSignal): Pro
   try {
     let response: Response
     try {
-      response = await fetch(`${API_BASE_URL}/api/analyze`, {
+      response = await fetch(`${API_BASE_URL}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
         signal: controller.signal,
       })
     } catch (error) {
@@ -78,7 +84,7 @@ export async function analyze(request: AnalyzeRequest, signal: AbortSignal): Pro
     }
     if (!response.ok) throw await readApiError(response)
     try {
-      return (await response.json()) as AnalyzeResponse
+      return (await response.json()) as T
     } catch {
       throw new ApiError('network', 'The server sent a reply that could not be read.')
     }
@@ -86,6 +92,14 @@ export async function analyze(request: AnalyzeRequest, signal: AbortSignal): Pro
     clearTimeout(timer)
     signal.removeEventListener('abort', onCancel)
   }
+}
+
+export function analyze(request: AnalyzeRequest, signal: AbortSignal): Promise<AnalyzeResponse> {
+  return postJson('/api/analyze', request, signal)
+}
+
+export function fetchHeatmap(request: HeatmapRequest, signal: AbortSignal): Promise<HeatmapResponse> {
+  return postJson('/api/heatmap', request, signal)
 }
 
 /** Silent GET /api/health on page load, to wake a sleeping free-tier server. */

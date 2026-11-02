@@ -43,7 +43,12 @@
   height: 100%;
 }
 
-/* Reserved for the Phase 5 heatmap slider; takes no space until it has content. */
+/* The strip under the map for the heatmap control; takes no space until it has content. */
+.map-bottom-slot {
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
 .map-bottom-slot:empty {
   display: none;
 }
@@ -493,4 +498,117 @@ button.primary:hover {
 
 .footer a {
   color: var(--muted);
+}
+
+/* Heatmap control */
+.heatmap-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 10px;
+}
+
+.heatmap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heatmap-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.heatmap-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heatmap-row input[type='range'] {
+  flex: 1;
+  padding: 0;
+  border: 0;
+  accent-color: var(--accent);
+}
+
+.play-button,
+.heatmap-error button {
+  min-width: 84px;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.heatmap-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.heatmap-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.heatmap-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.heatmap-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.heatmap-error {
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #c5ccd2;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
 }

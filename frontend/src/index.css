@@ -1,43 +1,82 @@
+/* Hallmark · Studio tokens and base for an app screen; the stamp is at the top of App.css */
+
+/* Hedvig Letters Serif, self-hosted (SIL OFL 1.1, see public/fonts/OFL.txt). Headings only. */
+@font-face {
+  font-family: 'Hedvig Letters Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/hedvig-letters-serif-latin.woff2') format('woff2');
+}
+
 :root {
-  --ink: #172230;
-  --muted: #4a5865; /* 6.4:1 on --page, 7:1 on white */
-  --line: #d6dee6;
-  --line-strong: #9aa8b5;
-  --surface: #ffffff;
-  --surface-soft: #f5f8fb;
-  --page: #eef2f6;
-  --accent: #0b5c8f; /* 7:1 on white */
-  --accent-hover: #084a73;
-  --accent-soft: #e3eef7;
+  color-scheme: light;
+
+  /* Paper and ink (Studio: cool proof paper, hue 215; blue-black ink). Ratios are against --page. */
+  --page: oklch(97.2% 0.006 215);
+  --paper-2: oklch(94% 0.009 215);
+  --paper-3: oklch(90.5% 0.011 215);
+  --surface: oklch(99% 0.004 215);
+  --ink: oklch(16% 0.032 250); /* 17.9:1 */
+  --ink-soft: oklch(34% 0.022 245); /* 10.9:1 */
+  --muted: oklch(49% 0.018 240); /* 5.8:1; 4.7:1 on --paper-3 */
+  --line: oklch(84% 0.01 225);
+  --field-edge: var(--muted);
+  --mark: color-mix(in oklab, var(--ink) 72%, transparent);
+  --dot: color-mix(in oklab, var(--ink) 18%, transparent);
+
+  /* The action and the selection are ink: the warm colours belong to the risk levels. */
+  --accent: var(--ink);
+  --accent-hover: var(--ink-soft);
+  --accent-active: oklch(8% 0.02 250);
+  --on-accent: var(--surface);
+  --accent-soft: var(--paper-2);
+  --accent-pressed: var(--paper-3);
+
+  /* States: red, amber and green appear only for risk and failure. */
   --warn-bg: #fff4e5;
   --warn-ink: #7a3b00;
   --danger-bg: #fdecea;
   --danger-ink: #8a1c13;
-  --ok-bg: #d8f0e6;
-  --ok-ink: #00513a;
-  --label-ink: #3a4856; /* 9.4:1 on white */
-  --ink-soft: #2c3a47;
-  --info-ink: #00466e;
-  --on-accent: #ffffff;
-  --accent-active: #063a5b;
-  --accent-pressed: #cfe1ef;
-  --field-edge: #7d8b98; /* 3.3:1 against the field fill */
-  --track: #e5e9ec;
-  --skeleton-hi: #f2f4f6;
-  --spinner-track: #c5ccd2;
+
+  /* Small parts */
+  --track: var(--paper-3);
+  --skeleton-hi: var(--paper-2);
+  --spinner-track: var(--line);
   --hatch: rgb(255 255 255 / 70%);
-  --swatch-edge: rgb(0 0 0 / 35%);
-  --legend-bg: rgb(255 255 255 / 96%);
-  --radius: 8px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 2px rgb(16 32 48 / 6%), 0 2px 8px rgb(16 32 48 / 6%);
-  --shadow-float: 0 4px 16px rgb(16 32 48 / 14%);
-  --shadow-up: 0 -2px 8px rgb(16 32 48 / 6%);
-  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'SF Mono', Menlo, monospace;
+  --swatch-edge: color-mix(in oklab, var(--ink) 35%, transparent);
+  --legend-bg: var(--surface);
+  --shadow-sheet:
+    1px 2px 0 color-mix(in oklab, var(--ink) 7%, transparent),
+    10px 18px 36px -14px color-mix(in oklab, var(--ink) 32%, transparent);
+
+  /* Type: Hedvig for heads, the system sans for everything else, tabular figures for data. */
+  --font-display: 'Hedvig Letters Serif', ui-serif, Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tracking-display: -0.022em;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+
+  /* Space (4 px base) and shape */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --radius: 3px;
+  --rule: 1px;
+  --dur-micro: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
   color: var(--ink);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 *,
@@ -46,16 +85,26 @@
   box-sizing: border-box;
 }
 
-/* A safety net: nothing should be wider than the screen, but if something is, clip it
-   instead of letting the whole page scroll sideways. */
+/* A safety net: if anything is ever wider than the screen, clip it instead of scrolling sideways. */
 html,
 body {
   overflow-x: clip;
 }
 
+html {
+  scrollbar-color: var(--muted) var(--page);
+}
+
 body {
   margin: 0;
   background: var(--page);
+  caret-color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--paper-3);
+  color: var(--ink);
 }
 
 button,
@@ -66,12 +115,21 @@ select {
 }
 
 h1,
-h2 {
+h2,
+h3 {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.1;
+  overflow-wrap: break-word;
   text-wrap: balance;
 }
 
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -81,7 +139,7 @@ h2 {
   height: 1px;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 

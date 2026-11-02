@@ -1,47 +1,52 @@
-/* Layout: a slim header, then form and results on the left and the map on the right.
+/* Hallmark · shape: app screen · genre: editorial · theme: Studio (by request) · redesign: full
+ * nav: kept (a header bar with the wordmark) · signature: the route index, read like a timetable · states: idle, waking, loading, error, results, partial, all blocked, heatmap loading/error/empty
+ * axes: light/roman-serif/neutral · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 · weakest: E, Studio's orange would collide with the High and Severe risk colours, so the action and the selection are set in ink and orange is left out */
+
+/* Layout: a header bar, then the trip and routes on the left and the map on the right.
    Stacked on narrow screens. */
 .app {
   display: grid;
-  grid-template-columns: minmax(340px, 440px) 1fr;
+  grid-template-columns: clamp(320px, 42%, 460px) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
 }
 
+/* The header is a proof: the dot grid lives here and nowhere else. */
 .app-header {
   grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--space-sm);
   height: 56px;
-  padding: 14px 20px 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-md) var(--space-lg) 0;
+  border-bottom: var(--rule) solid var(--line);
+  background-color: var(--page);
+  background-image: radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 1.4px);
+  background-size: 24px 24px;
 }
 
 .app-header h1 {
-  margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
+  font-size: var(--text-xl);
+  line-height: 1;
 }
 
 .tagline {
   margin: 0;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-lg);
   min-width: 0;
-  padding: 16px;
+  padding: var(--space-lg);
   overflow-y: auto;
-  overflow-wrap: anywhere;
-  background: var(--page);
-  border-right: 1px solid var(--line);
+  overflow-wrap: break-word;
+  border-right: var(--rule) solid var(--line);
 }
 
 .map-area {
@@ -63,108 +68,63 @@
   height: 100%;
 }
 
-/* The strip under the map for the heatmap control; takes no space until it has content. */
-.map-bottom-slot {
-  position: relative;
-  z-index: 1;
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-  box-shadow: var(--shadow-up);
-}
-
-.map-bottom-slot:empty {
-  display: none;
-}
-
 .map-notice {
   margin: auto;
-  padding: 16px;
+  padding: var(--space-md);
   max-width: 360px;
   text-align: center;
   color: var(--muted);
 }
 
-@media (max-width: 800px) {
-  .app {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    height: auto;
-  }
-
-  /* The map gets its own height and the heatmap strip sits under it, so a checkpoint
-     popup has room above or below its dot. */
-  .map-wrap {
-    flex: none;
-    height: 60vh;
-    height: 60svh;
-    min-height: 360px;
-  }
-
-  .app-header {
-    height: 48px;
-    padding: 12px 12px 0;
-    gap: 10px;
-  }
-
-  .app-header h1 {
-    font-size: 1.125rem;
-  }
-
-  .tagline {
-    font-size: 0.75rem;
-  }
-
-  .panel {
-    padding: 12px;
-    overflow-y: visible;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-}
-
-/* Shared: small uppercase monospace labels (12 px minimum, 7:1 on white). */
-label,
-.popup dt,
-.map-legend strong,
-.heatmap-head strong {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--label-ink);
-}
-
-/* Inline icons take the size and colour of the text beside them. */
-.icon {
-  flex: none;
-  width: 1em;
-  height: 1em;
-  vertical-align: -0.125em;
-}
-
-/* Form */
+/* Crop marks: eight short ticks just outside the corners of a printed piece (the trip sheet,
+   the legend). Drawn on ::before so they never take space. */
 .trip-form,
+.map-legend {
+  --crop-gap: 10px;
+  --crop-len: 6px;
+}
+
+.trip-form::before,
+.map-legend::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--crop-gap));
+  pointer-events: none;
+  --m: linear-gradient(var(--mark), var(--mark));
+  background:
+    var(--m) 0 var(--crop-gap) / var(--crop-len) 1px no-repeat,
+    var(--m) var(--crop-gap) 0 / 1px var(--crop-len) no-repeat,
+    var(--m) 100% var(--crop-gap) / var(--crop-len) 1px no-repeat,
+    var(--m) calc(100% - var(--crop-gap)) 0 / 1px var(--crop-len) no-repeat,
+    var(--m) 0 calc(100% - var(--crop-gap)) / var(--crop-len) 1px no-repeat,
+    var(--m) var(--crop-gap) 100% / 1px var(--crop-len) no-repeat,
+    var(--m) 100% calc(100% - var(--crop-gap)) / var(--crop-len) 1px no-repeat,
+    var(--m) calc(100% - var(--crop-gap)) 100% / 1px var(--crop-len) no-repeat;
+}
+
+/* Trip sheet */
+.trip-form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sheet);
+}
+
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2xs);
   min-width: 0;
-}
-
-.trip-form {
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
 }
 
 .field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-md);
 }
 
 @media (max-width: 480px) {
@@ -173,15 +133,23 @@ label,
   }
 }
 
+label {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
 input,
 select {
   width: 100%;
   min-width: 0;
   min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid var(--field-edge);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule) solid var(--field-edge);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur-micro) var(--ease-out);
 }
 
 input:hover,
@@ -192,42 +160,52 @@ select:hover {
 input[aria-invalid='true'],
 select[aria-invalid='true'] {
   border-color: var(--danger-ink);
-  background: var(--surface);
 }
 
 .field-hint {
-  min-height: 1.2em;
+  min-height: 1lh;
   margin: 0;
-  font-size: 0.8rem;
   color: var(--muted);
+  font-size: var(--text-xs);
 }
 
 .field-error {
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
   color: var(--danger-ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
 }
 
 .form-summary {
   margin: 0;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius);
   background: var(--danger-bg);
   color: var(--danger-ink);
-  font-weight: 600;
+  font-weight: 500;
 }
 
+/* The one action: an ink control with an inset rule, Studio's printed button. */
 button.primary {
+  position: relative;
   min-height: 44px;
-  padding: 10px 14px;
-  border: 0;
-  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
+  border: var(--rule) solid var(--accent);
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--on-accent);
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 120ms ease;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+button.primary::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: var(--rule) solid color-mix(in oklab, var(--on-accent) 35%, transparent);
+  border-radius: 1px;
+  pointer-events: none;
 }
 
 button.primary:hover {
@@ -247,228 +225,235 @@ button.primary:active {
   z-index: 10;
   left: 0;
   right: 0;
-  margin: 4px 0 0;
-  padding: 4px 0;
+  margin: var(--space-2xs) 0 0;
+  padding: var(--space-2xs) 0;
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border: var(--rule) solid var(--line);
+  border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-float);
+  box-shadow: var(--shadow-sheet);
 }
 
 .suggestions li {
-  padding: 8px 12px;
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
 }
 
 .suggestions li.active,
 .suggestions li:hover {
-  background: var(--accent-soft);
+  background: var(--paper-2);
 }
 
 /* Results */
 .results {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-lg);
 }
 
 .idle {
   margin: 0;
-  padding: 14px 16px;
-  border: 1px dashed var(--field-edge);
-  border-radius: var(--radius);
+  padding-top: var(--space-sm);
+  border-top: var(--rule) solid var(--line);
   color: var(--muted);
 }
 
 .stage {
   margin: 0;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .waking {
   margin: 0;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--info-ink);
-}
-
-.banner {
-  padding: 14px 16px;
-  border: 1px solid var(--line);
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  background: var(--paper-2);
+  color: var(--ink-soft);
 }
 
-/* Every route blocked: the whole card is the warning, with no box inside it. */
-.banner-blocked {
-  border: 2px solid var(--danger-ink);
-  background: var(--danger-bg);
+/* Recommendation: set as type under an ink rule, not as a card. */
+.banner {
+  padding-top: var(--space-md);
+  border-top: var(--rule) solid var(--ink);
 }
 
 .banner h2 {
-  margin: 0 0 6px;
-  font-size: 1rem;
+  margin: 0 0 var(--space-xs);
+  font-size: var(--text-xl);
+}
+
+.reasons {
+  margin: 0;
+  padding-left: var(--space-md);
+  color: var(--ink-soft);
+}
+
+/* Every route blocked: the whole block becomes the warning. */
+.banner-blocked {
+  padding: var(--space-md);
+  border: 2px solid var(--danger-ink);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+
+.banner-blocked h2 {
+  color: var(--ink);
 }
 
 .banner-alert {
-  margin: 0 0 12px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--danger-ink);
+  margin: 0 0 var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--rule) solid var(--danger-ink);
   color: var(--danger-ink);
 }
 
 .banner-alert strong {
   display: block;
+  font-weight: 600;
   text-wrap: balance;
 }
 
 .banner-alert p {
-  margin: 4px 0 0;
-}
-
-.reasons {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--ink-soft);
-  font-size: 0.9rem;
+  margin: var(--space-2xs) 0 0;
 }
 
 .warnings {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-xs);
+  border-top: var(--rule) solid var(--line);
   color: var(--warn-ink);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .warnings summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .warnings ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
+  margin: var(--space-2xs) 0 0;
+  padding-left: var(--space-md);
 }
 
 .error-panel {
-  padding: 12px 14px;
-  border: 1px solid var(--danger-ink);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--rule) solid var(--danger-ink);
   border-radius: var(--radius);
   background: var(--danger-bg);
   color: var(--danger-ink);
 }
 
 .error-panel p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-xs);
 }
 
 .error-panel ul {
-  margin: 0 0 8px;
-  padding-left: 18px;
+  margin: 0 0 var(--space-xs);
+  padding-left: var(--space-md);
 }
 
 .request-id {
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.error-panel button {
+  min-height: 36px;
+  padding: var(--space-2xs) var(--space-md);
+  border: var(--rule) solid var(--danger-ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .error-panel button:active {
   background: var(--danger-bg);
 }
 
-.error-panel button {
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 1px solid var(--danger-ink);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  cursor: pointer;
-  font-weight: 600;
-}
-
-/* Route cards */
+/* Route index: rows under an ink rule, hairlines between, read like a timetable. */
 .route-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: var(--rule) solid var(--ink);
+}
+
+.route-cards > li,
+.route-cards > .route-card {
+  border-bottom: var(--rule) solid var(--line);
 }
 
 .route-card {
-  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
+  gap: var(--space-2xs) var(--space-md);
   width: 100%;
-  padding: 12px 14px 12px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  padding: var(--space-md) var(--space-sm);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-
-.route-card > :nth-child(n + 4) {
-  grid-column: 1 / -1;
+  transition: background-color var(--dur-micro) var(--ease-out);
 }
 
 .route-card:hover {
-  border-color: var(--field-edge);
+  background: var(--paper-2);
 }
 
 .route-card:active {
-  background: var(--surface-soft);
+  background: var(--paper-3);
 }
 
 .route-card.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
-}
-
-.route-swatch {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 var(--rule) var(--ink);
 }
 
 .card-head {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  font-size: 1.05rem;
+  gap: var(--space-2xs) var(--space-xs);
+}
+
+/* A short sample of the route's line on the map. */
+.route-key {
+  flex: none;
+  width: 20px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.route-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.2;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.4;
+  gap: var(--space-2xs);
+  padding: 0 var(--space-xs);
+  border: var(--rule) solid currentColor;
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .badge-recommended {
-  background: var(--ok-bg);
-  color: var(--ok-ink);
+  color: var(--ink);
 }
 
 .badge-blocked {
@@ -477,30 +462,46 @@ button.primary:active {
 }
 
 .card-stats {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.card-stats > :first-child {
-  font-family: var(--mono);
-  font-size: 1.15rem;
-  font-weight: 700;
+.card-duration {
+  font-size: var(--text-lg);
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .card-stats > :last-child {
-  font-family: var(--mono);
-  font-size: 0.8rem;
   color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.card-eta {
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.risk-bar,
+.risk-legend,
+.card-meta {
+  grid-column: 1 / -1;
 }
 
 .risk-bar {
   display: flex;
-  height: 10px;
+  height: 8px;
+  margin-top: var(--space-xs);
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 1px;
   background: var(--track);
 }
 
@@ -515,34 +516,34 @@ button.primary:active {
 .risk-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  font-family: var(--mono);
-  font-size: 0.75rem;
+  gap: var(--space-2xs) var(--space-sm);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2xs);
 }
 
 .card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  font-size: 0.8rem;
+  gap: var(--space-2xs) var(--space-md);
   color: var(--muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 .swatch {
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid var(--swatch-edge);
   flex: none;
+  width: 10px;
+  height: 10px;
+  border: var(--rule) solid var(--swatch-edge);
+  border-radius: 50%;
 }
 
 .swatch.hollow {
@@ -550,9 +551,20 @@ button.primary:active {
   border-width: 2.5px;
 }
 
-/* Loading skeleton */
+.icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+/* Loading skeleton, in the shape of the rows to come */
 .route-card.skeleton {
   cursor: default;
+}
+
+.route-card.skeleton:hover {
+  background: transparent;
 }
 
 .route-card.skeleton > * {
@@ -563,7 +575,7 @@ button.primary:active {
   display: block;
   height: 12px;
   width: 50%;
-  border-radius: 6px;
+  border-radius: 1px;
   background: linear-gradient(90deg, var(--track) 25%, var(--skeleton-hi) 50%, var(--track) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite linear;
@@ -589,26 +601,32 @@ button.primary:active {
   }
 }
 
-/* Map legend: a card in the bottom right, above the Mapbox attribution (bottom right)
-   and clear of the logo (bottom left). The heatmap strip is outside the map box. */
+/* Map legend: a printed sheet in the bottom right, above the Mapbox attribution and clear
+   of the logo. The forecast strip sits outside the map box. */
 .map-legend {
   position: absolute;
   z-index: 2;
-  right: 10px;
-  bottom: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
+  right: var(--space-md);
+  bottom: var(--space-xl);
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius);
   background: var(--legend-bg);
-  font-size: 0.8rem;
-  box-shadow: var(--shadow-float);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-sheet);
+}
+
+.map-legend strong {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
 }
 
 .map-legend ul {
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap: 4px 16px;
-  margin: 8px 0 0;
+  gap: var(--space-2xs) var(--space-md);
+  margin: var(--space-xs) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -616,80 +634,90 @@ button.primary:active {
 .map-legend li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
-/* Checkpoint popup: drawn above the legend card. */
+/* Checkpoint popup: a sheet above the legend. */
 .mapboxgl-popup {
   z-index: 3;
 }
 
 .mapboxgl-popup-content {
-  padding: 12px 14px;
+  padding: var(--space-md);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-float);
-}
-
-.mapboxgl-popup-close-button:active {
-  background: var(--accent-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-sheet);
 }
 
 .mapboxgl-popup-close-button {
   min-width: 32px;
   min-height: 32px;
-  font-size: 1.25rem;
   color: var(--muted);
+  font-size: var(--text-lg);
+}
+
+.mapboxgl-popup-close-button:active {
+  background: var(--paper-2);
 }
 
 .popup {
   min-width: 220px;
   color: var(--ink);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .popup p {
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-xs);
 }
 
 .popup-title {
-  padding-right: 24px; /* room for the close button */
+  padding-right: var(--space-lg); /* room for the close button */
+}
+
+.popup-title strong {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
 }
 
 .popup-mile {
-  font-family: var(--mono);
-  font-size: 0.8rem;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .popup-level {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  gap: var(--space-2xs) var(--space-xs);
 }
 
 .level-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 10px 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface-soft);
+  gap: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border: var(--rule) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--page);
+}
+
+.level-pill strong {
+  font-weight: 500;
 }
 
 .popup-factor {
   color: var(--muted);
-  font-size: 0.8rem;
 }
 
 .popup dl {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  margin: 8px 0 6px;
-  padding: 10px 0 0;
-  border-top: 1px solid var(--line);
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: var(--rule) solid var(--ink);
 }
 
 .popup dl > div {
@@ -702,80 +730,93 @@ button.primary:active {
 }
 
 .popup dt {
-  margin-bottom: 1px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
 }
 
 .popup dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .popup-note {
-  padding: 6px 8px;
-  border-radius: 4px;
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius);
   background: var(--warn-bg);
   color: var(--warn-ink);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .footer {
   margin-top: auto;
-  padding-top: 8px;
-  font-size: 0.8rem;
+  padding-top: var(--space-xs);
+  font-size: var(--text-xs);
 }
 
 .footer a {
   color: var(--muted);
 }
 
-/* Heatmap control: the strip under the map */
+/* Forecast strip under the map: a paper-2 band, the timeline of the next 48 hours. */
+.map-bottom-slot {
+  position: relative;
+  z-index: 1;
+  border-top: var(--rule) solid var(--ink);
+  background: var(--paper-2);
+}
+
+.map-bottom-slot:empty {
+  display: none;
+}
+
 .heatmap-control {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 16px 12px;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg) var(--space-md);
 }
 
 .heatmap-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
+  align-items: baseline;
+  gap: var(--space-2xs) var(--space-md);
 }
 
 .heatmap-head strong {
-  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
 }
 
 .heatmap-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 400;
-  letter-spacing: normal;
-  text-transform: none;
+  gap: var(--space-xs);
   color: var(--ink);
+  font-weight: 400;
   cursor: pointer;
 }
 
 .heatmap-toggle input {
   width: auto;
   min-height: 0;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
 }
 
 .heatmap-player {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
 .heatmap-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .heatmap-row input[type='range'] {
@@ -784,61 +825,69 @@ button.primary:active {
   padding: 0;
   border: 0;
   background: transparent;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
 }
 
+/* Play and Retry: printed controls, a hairline ink border with an inset rule. */
 .play-button,
 .heatmap-error button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
   min-width: 84px;
   min-height: 36px;
-  padding: 6px 12px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  border: var(--rule) solid var(--ink);
+  border-radius: var(--radius);
   background: var(--surface);
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--ink);
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.play-button::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: var(--rule) solid var(--line);
+  border-radius: 1px;
+  pointer-events: none;
 }
 
 .play-button:hover,
 .heatmap-error button:hover {
-  background: var(--accent-soft);
+  background: var(--page);
 }
 
 .play-button:active,
 .heatmap-error button:active {
-  background: var(--accent-pressed);
-}
-
-.play-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  background: var(--paper-3);
 }
 
 .heatmap-label {
   margin: 0;
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .heatmap-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 14px;
+  gap: var(--space-2xs) var(--space-md);
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 .heatmap-legend li {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2xs);
 }
 
 .heatmap-legend li:last-child {
@@ -847,22 +896,22 @@ button.primary:active {
 
 .heatmap-note {
   margin: 0;
-  font-size: 0.8rem;
   color: var(--muted);
+  font-size: var(--text-xs);
 }
 
 .heatmap-message {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   margin: 0;
   color: var(--muted);
 }
 
 .heatmap-error {
   justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius);
   background: var(--danger-bg);
   color: var(--danger-ink);
 }
@@ -872,7 +921,7 @@ button.primary:active {
   width: 14px;
   height: 14px;
   border: 2px solid var(--spinner-track);
-  border-top-color: var(--accent);
+  border-top-color: var(--ink);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -889,12 +938,13 @@ button.primary:active {
   }
 }
 
-/* Wide screens: the current hour label sits at the right of the strip's title line. */
-@media (min-width: 801px) {
+/* Wide screens: the current hour sits at the right of the strip's title line. Below 1100 px the
+   map column is too narrow for both, so the hour keeps its own line. */
+@media (min-width: 1100px) {
   .heatmap-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 16px;
+    gap: var(--space-xs) var(--space-md);
   }
 
   .heatmap-control > *,
@@ -914,13 +964,52 @@ button.primary:active {
   .heatmap-player > .heatmap-label {
     grid-column: 2;
     grid-row: 1;
-    align-self: center;
+    align-self: baseline;
     text-align: right;
   }
 }
 
-/* Touch layout (phones and tablets): tap targets of at least 44 px, and a legend that leaves the map visible. */
+/* Phones and tablets: stacked, tap targets of at least 44 px, and a legend that leaves the map visible. */
 @media (max-width: 800px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    height: auto;
+  }
+
+  .app-header {
+    height: 48px;
+    padding: var(--space-sm) var(--space-md) 0;
+  }
+
+  .app-header h1 {
+    font-size: var(--text-lg);
+  }
+
+  .tagline {
+    font-size: var(--text-xs);
+  }
+
+  .panel {
+    padding: var(--space-md);
+    overflow-y: visible;
+    border-right: 0;
+    border-bottom: var(--rule) solid var(--line);
+  }
+
+  .trip-form {
+    padding: var(--space-md);
+  }
+
+  /* The map gets its own height and the forecast strip sits under it, so a checkpoint
+     popup has room above or below its dot. */
+  .map-wrap {
+    flex: none;
+    height: 60vh;
+    height: 60svh;
+    min-height: 360px;
+  }
+
   .panel input:not([type='checkbox']),
   .panel select,
   .panel button,
@@ -936,7 +1025,7 @@ button.primary:active {
   }
 
   .warnings summary {
-    padding: 11px 0;
+    padding: var(--space-sm) 0;
   }
 
   .heatmap-toggle {
@@ -949,12 +1038,12 @@ button.primary:active {
   }
 
   .heatmap-control {
-    padding: 8px 12px 12px;
+    padding: var(--space-sm) var(--space-md) var(--space-md);
   }
 
   .footer a {
     display: inline-block;
-    padding: 14px 0;
+    padding: var(--space-sm) 0;
   }
 
   .mapboxgl-popup-close-button {
@@ -963,20 +1052,33 @@ button.primary:active {
   }
 
   .popup-title {
-    padding-right: 36px;
+    padding-right: var(--space-xl);
   }
 
-  /* A compact strip across the top of the map: names stay, the title is hidden
-     visually (the list keeps its accessible name from the card's aria-label). */
+  /* Narrow enough to sit beside a dot on a phone-width map without running off the edge. */
+  .mapboxgl-popup-content {
+    padding: var(--space-sm);
+  }
+
+  .popup {
+    width: 200px;
+    min-width: 0;
+  }
+
+  /* A compact strip across the top of the map: names stay; the title is hidden visually
+     (the list keeps its accessible name from the card's aria-label). */
   .map-legend {
-    top: 8px;
-    left: 8px;
+    top: var(--space-xs);
+    left: var(--space-xs);
     right: auto;
     bottom: auto;
     max-width: calc(100% - 16px);
-    padding: 4px 8px;
-    font-size: 0.75rem;
-    box-shadow: var(--shadow);
+    padding: var(--space-2xs) var(--space-xs);
+    font-size: var(--text-xs);
+  }
+
+  .map-legend::before {
+    display: none;
   }
 
   .map-legend strong {
@@ -984,19 +1086,14 @@ button.primary:active {
     width: 1px;
     height: 1px;
     overflow: hidden;
-    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
     white-space: nowrap;
   }
 
   .map-legend ul {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px 10px;
+    gap: var(--space-3xs) var(--space-sm);
     margin: 0;
-  }
-
-  .map-legend .swatch {
-    width: 10px;
-    height: 10px;
   }
 }

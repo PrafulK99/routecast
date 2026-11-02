@@ -2,6 +2,7 @@
 
 import logging
 
+from django.core.exceptions import RequestDataTooBig
 from rest_framework import status
 from rest_framework.exceptions import APIException, ParseError, Throttled, ValidationError
 from rest_framework.response import Response
@@ -75,6 +76,11 @@ def exception_handler(exc, context):
             request, status.HTTP_429_TOO_MANY_REQUESTS, "rate_limited",
             f"Too many requests. Try again in {wait} seconds." if wait else "Too many requests.",
             headers={"Retry-After": str(wait)} if wait else None,
+        )
+
+    if isinstance(exc, RequestDataTooBig):
+        return error_response(
+            request, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "payload_too_large", "The request is too large."
         )
 
     for exc_type, http_status, code in PROVIDER_ERRORS:

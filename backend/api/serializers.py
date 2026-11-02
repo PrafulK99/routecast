@@ -16,6 +16,8 @@ from domain.geo import haversine_miles
 from services.analyze import TripRequest
 from services.heatmap import HeatmapRequest
 
+from .weather_payload import WeatherField
+
 MIN_TRIP_MILES = 0.5
 MAX_LOAD_WEIGHT_LB = 200_000
 DEPARTURE_WINDOW = timedelta(days=7)
@@ -105,7 +107,9 @@ class DepartureAndLoadSerializer(serializers.Serializer):
         return value
 
 
-class AnalyzeRequestSerializer(DepartureAndLoadSerializer):
+class PlanRequestSerializer(DepartureAndLoadSerializer):
+    """The trip. /api/plan takes exactly this; /api/analyze adds the optional weather."""
+
     origin = PointSerializer()
     destination = PointSerializer()
     checkpoint_interval_miles = serializers.ChoiceField(
@@ -132,8 +136,13 @@ class AnalyzeRequestSerializer(DepartureAndLoadSerializer):
         )
 
 
+class AnalyzeRequestSerializer(PlanRequestSerializer):
+    weather = WeatherField(required=False, allow_null=True)
+
+
 class HeatmapRequestSerializer(DepartureAndLoadSerializer):
     points = serializers.ListField(child=LatLonPairField(), min_length=1, max_length=CORRIDOR_POINT_CAP)
+    weather = WeatherField(required=False, allow_null=True)
 
     def create(self, validated_data):
         return HeatmapRequest(
@@ -282,10 +291,30 @@ class AnalyzeResponseSerializer(serializers.Serializer):
     routes = RouteSerializer(many=True)
     recommendation = RecommendationSerializer()
     corridor_points = serializers.SerializerMethodField()
+    corridor_cells = serializers.SerializerMethodField()
 
     def get_corridor_points(self, result):
         """[lat, lon] pairs, ready to post to /api/heatmap."""
         return [[round(lat, 5), round(lon, 5)] for lat, lon in result.corridor_points]
+
+    def get_corridor_cells(self, result):
+        """[lat, lon] grid cells of the corridor points: the weather the heatmap needs."""
+        return [[lat, lon] for lat, lon in result.corridor_cells]
+
+
+class PlanResponseSerializer(serializers.Serializer):
+    cells = serializers.SerializerMethodField()
+    window = serializers.SerializerMethodField()
+
+    def get_cells(self, plan):
+        """[lat, lon] grid cells of every checkpoint of every route: the weather to fetch."""
+        return [[lat, lon] for lat, lon in plan.cells]
+
+    def get_window(self, plan):
+        return {
+            "first_hour": plan.first_hour.strftime(TIME_FORMAT),
+            "last_hour": plan.last_hour.strftime(TIME_FORMAT),
+        }
 
 
 class HeatmapPointSerializer(serializers.Serializer):

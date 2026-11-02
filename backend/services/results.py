@@ -39,6 +39,7 @@ class AnalysisResult:
     routes: tuple[RouteResult, ...]
     recommendation: Recommendation
     corridor_points: tuple[LatLon, ...]
+    corridor_cells: tuple[LatLon, ...]  # their unique grid cells: the weather the heatmap needs
 
 
 @dataclass(frozen=True)

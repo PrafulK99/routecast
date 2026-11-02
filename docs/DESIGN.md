@@ -55,7 +55,7 @@ A stateless Django API does all scoring and ranking; the React app only collects
 
 &#91;embedded content: system architecture · browser, API layers, two external services\]
 
-The browser talks to the API for scoring and to Mapbox directly for address search and map tiles. Only the Providers layer touches Mapbox routing and Open-Meteo, and only the Domain layer holds the graded logic.
+The browser talks to the API for planning and scoring, to Mapbox directly for address search and map tiles, and to Open-Meteo directly for the weather. The hosted server shares one outgoing IP with other apps, so Open-Meteo's free daily limit (counted per location per IP) is spent every day; fetching in the browser gives each visitor their own quota. The server never fetches weather for a request that carries it. It fetches weather itself only when a request carries none (local development, scratch scripts, tests). Only the Providers layer touches Mapbox routing and the server-side Open-Meteo path, and only the Domain layer holds the graded logic, whichever way the weather arrived.
 
 **Backend layers.** Dependencies point inward, so the risk logic never imports Django or an HTTP client.
 
@@ -71,23 +71,25 @@ The browser talks to the API for scoring and to Mapbox directly for address sear
 | Frontend | React, TypeScript, Vite, TanStack Query | Typed API contract; request cancellation and caching built in |
 | Map | react-map-gl with Mapbox GL JS | One vendor and one token for tiles, geocoding and routing; native heatmap layer; avoids any question about Directions API display terms |
 | Backend | Django 5, Django REST Framework, Python 3.12 | Required stack; serializers give validation and clear errors |
-| Outbound HTTP | httpx with a thread pool for parallel weather batches | Simple synchronous code, no async server needed |
+| Outbound HTTP | httpx with a thread pool for parallel weather batches (server path); browser fetch, 4 batches in parallel (browser path) | Simple synchronous code, no async server needed; the browser path spends the visitor's own Open-Meteo quota |
 | Routing and geocoding | Mapbox Directions and Geocoding | Alternatives on long routes; per-segment duration annotations for accurate ETAs |
-| Weather | Open-Meteo | No key, hourly wind, rain and snowfall, many locations per request |
+| Weather | Open-Meteo, fetched by the browser | No key, hourly wind, rain and snowfall, many locations per request; one quota per visitor |
 | Cache | Django cache (local memory, Redis if configured) | Weather and route responses are reusable; cache misses only cost latency |
 | Hosting | Render or Railway (API), Vercel (web) | Free tiers, simple deploys |
 
 **Request flow for one analysis**
 
-1. The browser resolves the typed addresses to coordinates with Mapbox Geocoding and sends POST /api/analyze.
-2. The view validates the payload.
-3. The routing provider returns up to 3 routes with full geometry and per-segment distance and duration; the via-point fallback fills gaps.
-4. For each route the domain builds cumulative distance and time, places checkpoints, and computes each ETA.
-5. The service collects the unique weather grid cells across all checkpoints and fetches them in parallel batches, cache first.
-6. For each checkpoint, the domain picks the forecast hour for the ETA and classifies the risk using the load weight.
+1. The browser resolves the typed addresses to coordinates with Mapbox Geocoding and sends POST /api/plan.
+2. The view validates the payload. The routing provider returns up to 3 routes with full geometry and per-segment distance and duration; the via-point fallback fills gaps. The raw Mapbox answers are cached for 10 minutes.
+3. For each route the domain builds cumulative distance and time, places checkpoints, and computes each ETA. The plan response lists the unique weather grid cells of all checkpoints of all routes and the UTC hour window needed (from the first checkpoint hour to the later of the last ETA hour and 48 hours after departure). It makes no Open-Meteo call.
+4. The browser fetches those cells from Open-Meteo in batches of 50 locations, up to 4 requests in parallel, and trims each series to the window. Cells fetched in the last 30 minutes are reused.
+5. The browser sends POST /api/analyze with the same body plus `weather`. Routing repeats from the cache, so no routing call is made again.
+6. For each checkpoint, the domain picks the forecast hour for the ETA and classifies the risk using the load weight, from the supplied weather. A checkpoint whose cell or hour was not supplied is unavailable.
 7. Per route, it totals miles by level, average risk, duration and forecast coverage, then ranks the routes and writes the recommendation reason.
-8. The response carries the routes, checkpoints, recommendation and a short list of corridor points.
-9. After rendering, the browser posts the corridor points to POST /api/heatmap and draws the heatmap when it arrives, so the route results never wait on it.
+8. The response carries the routes, checkpoints, recommendation, a short list of corridor points and the grid cells of those points.
+9. After rendering, the browser fetches the corridor cells it does not already hold (the exact coordinates the response names, never rounded in the browser) for departure hour to +48 hours, and posts the corridor points with that weather to POST /api/heatmap. The route results never wait on it.
+
+Without a `weather` field, /api/analyze and /api/heatmap fetch the weather themselves from Open-Meteo (cache first, parallel batches), exactly as before. The progress states shown in the browser are Planning routes (steps 1 to 3), Fetching weather (step 4) and Scoring routes (steps 5 to 8).
 
 ## Risk engine
 
@@ -203,11 +205,13 @@ Every checkpoint gets its own arrival time and the forecast for that hour at tha
 
 **4. Weather (Open-Meteo)**
 
+Two paths feed the same domain code. The **browser path** (the app) fetches Open-Meteo itself and sends the hourly series with the request. The **server path** (no `weather` field) fetches it as described below. Both read the same variables in the same units, and supplied series are converted by the same parser, so identical data gives identical results.
+
 - Variables: hourly wind speed at 10 m, rain, showers and snowfall. Units requested: mph and inches. Time zone: GMT, so all timestamps are UTC.
 - Rain used for the rules = rain plus showers.
 - Locations are rounded to a 0.1 degree grid (about 7 miles) so nearby checkpoints share one lookup and the cache hits often.
-- Fetch the unique cells in batches of up to 50 locations, up to 4 requests in parallel, 5 second timeout, one retry with a short backoff.
-- The full forecast series for each cell is cached for 30 minutes; both the risk scoring and the heatmap read from it.
+- Fetch the unique cells in batches of up to 50 locations, up to 4 requests in parallel. Server: 5 second timeout, one retry with a short backoff, and a per-minute 429 is waited out. Browser: 10 second timeout, one retry on a network error or 5xx, and any 429 stops the fetch with a message that names the quota (minutely, hourly or daily) read from the reason text. A 429 the browser cannot read (its error body is hidden when the response has no CORS headers) is reported as the weather service being unreachable, with a retry button.
+- The full forecast series for each cell is cached for 30 minutes: on the server for the server path, and in the page for the browser path (matched by the exact cell coordinates the server named). Both the risk scoring and the heatmap read from it. Weather a client supplies is never written to the server cache.
 - Verify in the first hour (see roadmap): exact variable names, that snowfall follows the inch unit, and the batch size limit.
 
 **5. Corridor points for the heatmap**
@@ -215,19 +219,25 @@ Every checkpoint gets its own arrival time and the forecast for that hour at tha
 1. Sample every route at 15 mile spacing.
 2. Drop points that fall in the same 0.1 degree cell as an earlier point.
 3. Cap at 200 points; if over, increase the spacing.
-4. Return them in the analyze response. The heatmap endpoint scores each point for 49 hours using the same risk function and load weight.
+4. Return them in the analyze response as `corridor_points`, together with `corridor_cells`: their unique grid cells, rounded by the server from the points as sent (5 decimals), in first-seen order. The browser fetches exactly those cells and sends them back unchanged, so it holds no rounding logic. The heatmap endpoint scores each point for 49 hours using the same risk function and load weight.
 
 **6. Geometry sent to the browser.** The full geometry is used for sampling on the server. The browser gets a simplified copy (Douglas-Peucker, about 50 m tolerance, capped near 2,000 points per route) so the map stays fast.
 
 ## API contracts
 
-Three JSON endpoints, all stateless. The browser resolves addresses to coordinates itself, so the API never geocodes and has one fewer failure mode.
+Four JSON endpoints, all stateless. The browser resolves addresses to coordinates itself, so the API never geocodes and has one fewer failure mode.
 
 | Endpoint | Purpose |
 | --- | --- |
 | GET /api/health | Liveness check for the host and for warming a sleeping free-tier server |
-| POST /api/analyze | Routes, checkpoints, risk, recommendation, corridor points |
+| POST /api/plan | The weather an analysis needs: grid cells and hour window. Routing only, no weather call |
+| POST /api/analyze | Routes, checkpoints, risk, recommendation, corridor points and cells |
 | POST /api/heatmap | 49 hourly risk levels for each corridor point |
+
+**POST /api/plan**
+
+- Request: the same body as /api/analyze, without `weather`.
+- Response: `cells` (list of [lat, lon] grid cells of every checkpoint of every route, unique) and `window` (`first_hour`, `last_hour`, UTC). It reuses the cached routing answer, so the later analyze repeats no routing call.
 
 **POST /api/analyze request**
 
@@ -237,6 +247,16 @@ Three JSON endpoints, all stateless. The browser resolves addresses to coordinat
 | departure\_time | ISO 8601 with a UTC offset. From the current hour to 7 days ahead |
 | load\_weight\_lb | Integer, 0 to 200,000 |
 | checkpoint\_interval\_miles | 10, 25 or 50. Default 25 |
+| weather | Optional list of weather cells fetched by the browser. Absent or null means the server fetches the weather itself |
+
+**The weather field** (also accepted by /api/heatmap). Each entry has exactly `lat`, `lon`, `time`, `wind_speed_10m`, `rain`, `showers`, `snowfall`, in the units requested from Open-Meteo (mph, inches). Checked strictly:
+
+- At most 450 cells (3 routes times the 150-checkpoint cap, so any plan the server issues fits) and 1 to 400 hours per cell; no two entries in the same 0.1 degree cell.
+- `time`: UTC hours written like `2026-11-02T14:00`, no zone suffix, real dates, strictly increasing.
+- The four arrays have the same length as `time`; each value is a finite number of 0 or more, or null. Booleans, strings, NaN, infinity and negatives are rejected.
+- Cells are matched to checkpoints by the server's own grid cell of `lat` and `lon`. The field is trusted for weather values only; cells nobody needs are ignored.
+- A cell or hour that is missing makes its checkpoints unavailable and adds a warning; a null value stays unknown, never 0. If no needed cell was supplied the answer is 502 weather\_unavailable.
+- The request body is limited to MAX\_REQUEST\_BYTES (5 MiB). A weather entry costs about 43 bytes per hour, so a typical Dallas to Chicago trip is about 0.2 MB and the largest trip the server accepts (450 cells, about 200 hours) about 4 MB.
 
 **POST /api/analyze response**
 
@@ -248,10 +268,11 @@ Three JSON endpoints, all stateless. The browser resolves addresses to coordinat
   - checkpoints: index, mile marker, lat, lon, ETA, forecast hour, wind in mph, rain and snow in inches per hour, segment miles, status (ok, partial, unavailable), and risk (level number, level name, deciding factor, the three individual levels, load rule applied)
 - **recommendation**: recommended route id, reason lines, all\_blocked flag, and the ranking list with each route's sort key values.
 - **corridor\_points**: list of \[lat, lon\] pairs, at most 200.
+- **corridor\_cells**: the unique grid cells of those points, in first-seen order. They are the weather the heatmap needs.
 
 **POST /api/heatmap**
 
-- Request: points (list of \[lat, lon\], at most 200), departure\_time, load\_weight\_lb.
+- Request: points (list of \[lat, lon\], at most 200), departure\_time, load\_weight\_lb, and the optional weather field above.
 - Response: start\_hour (UTC, departure rounded down to the hour), hours (49), and for each point its lat, lon and a list of 49 risk levels, with -1 where no forecast exists.
 
 **Errors.** One shape for all: an error object with code, message and optional per-field details.
@@ -260,7 +281,8 @@ Three JSON endpoints, all stateless. The browser resolves addresses to coordinat
 | --- | --- | --- |
 | 400 | validation\_error | Any field rule above is broken |
 | 422 | no\_route | The routing provider finds no drivable route |
-| 429 | rate\_limited | More than 30 requests a minute from one client |
+| 413 | payload\_too\_large | The request body is over MAX\_REQUEST\_BYTES |
+| 429 | rate\_limited | More than 30 requests a minute from one client. Plan, analyze and heatmap share the limit; one analysis uses three |
 | 502 | routing\_unavailable | Mapbox fails after one retry |
 | 502 | weather\_unavailable | Open-Meteo fails for every location. If only some locations fail, the response succeeds with those checkpoints unavailable and a warning |
 | 500 | internal\_error | Anything unexpected. Logged with the request id, never with a stack trace in the response |
@@ -354,7 +376,11 @@ Every row below has a defined behaviour and a test or manual check. The rule beh
 | Two routes nearly identical | Fallback candidates over 80% overlap are dropped; routes the provider itself returns are kept |
 | Trip longer than the forecast covers | Later checkpoints unavailable; coverage shown; no Low assumed |
 | Open-Meteo fails for some locations | Those checkpoints unavailable with a warning; the rest are scored |
-| Open-Meteo fails entirely | 502 weather\_unavailable, because a safety score without weather would mislead |
+| A browser batch fails twice, or the supplied weather lacks cells or hours | The server marks those checkpoints unavailable with a warning; never Low |
+| Open-Meteo answers 429 to the browser | No scoring. The message names the quota: minutely (wait a minute), hourly (about an hour), daily (resets at 00:00 UTC), or unknown. A 429 the browser cannot read shows as the weather service being unreachable, with a retry button |
+| Weather supplied that is malformed, too large or for the wrong cells | 400 validation\_error with the field path, 413 payload\_too\_large, or 502 weather\_unavailable when no needed cell was supplied |
+| Plan and analyze see different routes (routing cache expired, or another server process answered) | Checkpoints whose cell was not fetched are unavailable with a warning; never Low |
+| Open-Meteo fails entirely | Server path: 502 weather\_unavailable. Browser path: the weather step fails with a retry button. Either way no safety score is shown without weather |
 | Mapbox fails or times out | One retry, then 502 routing\_unavailable |
 | Annotation arrays missing or the wrong length | Proportional time along the route and a warning |
 | Very long route (over 150 checkpoints) | Interval raised to the next allowed value; reported in meta |
@@ -406,7 +432,8 @@ Two deployables: the Django API on Render or Railway, and the static React build
 | DJANGO\_SECRET\_KEY, DEBUG, ALLOWED\_HOSTS | API | Standard Django; DEBUG off in production |
 | TRUCK\_DURATION\_FACTOR | API | 1.10 |
 | MAX\_CHECKPOINTS\_PER\_ROUTE | API | 150 |
-| WEATHER\_CACHE\_TTL\_S | API | 1800 |
+| WEATHER\_CACHE\_TTL\_S | API | 1800 (server-fetch path only; the browser holds fetched cells for the same 30 minutes) |
+| MAX\_REQUEST\_BYTES | API | 5242880 (5 MiB) |
 | REDIS\_URL | API | Optional; local memory cache if absent |
 
 **Security and abuse limits**
@@ -414,8 +441,8 @@ Two deployables: the Django API on Render or Railway, and the static React build
 - Secrets only in host environment settings, never in the repo; an .env.example lists the names.
 - CORS allows only the web app's origin.
 - 30 requests a minute per client on the two POST endpoints, to protect the free-tier quotas of both APIs.
-- Request size limits and the field rules above; no user text is stored or logged beyond the request id.
-- The browser never sees the server token.
+- A request size limit (MAX\_REQUEST\_BYTES) and the field rules above; weather supplied by a client is validated strictly, used for weather values only, and never cached; no user text is stored or logged beyond the request id.
+- The browser never sees the server token. It calls Open-Meteo directly (no key) and keeps its attribution visible.
 
 **Operations**
 

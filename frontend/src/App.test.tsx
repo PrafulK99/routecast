@@ -416,11 +416,14 @@ describe('weather heatmap', () => {
     const [url, init] = callsTo(fetchMock, '/api/heatmap')[0]
     expect(String(url)).toMatch(/\/api\/heatmap$/)
     expect(init?.method).toBe('POST')
-    expect(heatmapCalls[0].request).toEqual({
+    const { weather, ...rest } = heatmapCalls[0].request
+    expect(rest).toEqual({
       points: threeRouteAnalysis().corridor_points,
       departure_time: analyzeCalls[0].request.departure_time,
       load_weight_lb: 40000,
     })
+    // The weather is for the corridor cells, under the exact coordinates the analysis named.
+    expect(weather?.map((cell) => [cell.lat, cell.lon])).toEqual(threeRouteAnalysis().corridor_cells)
   })
 
   test('the route results never wait for it: cards show while the heatmap is still loading', async () => {

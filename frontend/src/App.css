@@ -194,6 +194,12 @@ button.primary:hover {
   color: var(--muted);
 }
 
+.stage {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .waking {
   margin: 0;
   padding: 8px 10px;

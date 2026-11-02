@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { vi } from 'vitest'
 import { analyzeSample, heatmapSample } from '../api/fixtures/check'
-import type { AnalyzeRequest, AnalyzeResponse, HeatmapRequest, HeatmapResponse } from '../api/types'
+import type { AnalyzeRequest, AnalyzeResponse, HeatmapRequest, HeatmapResponse, PlanResponse } from '../api/types'
 import { SEARCH_DELAY_MS } from '../components/PlaceInput'
 
 export function renderWithClient(ui: ReactElement) {
@@ -73,14 +73,46 @@ export function heatmapResponse(): HeatmapResponse {
   return structuredClone(heatmapSample)
 }
 
-/** Routes fetch by URL: health, geocoding, and the given /api/analyze and /api/heatmap handlers. */
+/** What /api/plan answers by default: two cells and a 48-hour window. */
+export function planResponse(): PlanResponse {
+  return {
+    cells: [[32.8, -96.8], [41.9, -87.6]],
+    window: { first_hour: '2026-11-02T14:00:00Z', last_hour: '2026-11-04T14:00:00Z' },
+  }
+}
+
+/** An Open-Meteo answer for the requested locations: calm, 72 hours from 2026-11-02T00:00. */
+export function openMeteoBody(url: URL) {
+  const lats = (url.searchParams.get('latitude') ?? '').split(',')
+  const lons = (url.searchParams.get('longitude') ?? '').split(',')
+  const time = Array.from({ length: 72 }, (_, h) => new Date(Date.UTC(2026, 10, 2, h)).toISOString().slice(0, 16))
+  const zeros = time.map(() => 0)
+  const locations = lats.map((lat, i) => ({
+    latitude: Number(lat),
+    longitude: Number(lons[i]),
+    hourly: { time, wind_speed_10m: time.map(() => 5), rain: zeros, showers: zeros, snowfall: zeros },
+  }))
+  return locations.length === 1 ? locations[0] : locations
+}
+
+interface Handlers {
+  plan?: (call: { request: AnalyzeRequest; signal: AbortSignal }) => Response | Promise<Response>
+  weather?: (url: URL, signal: AbortSignal) => Response | Promise<Response>
+}
+
+/** Routes fetch by URL: health, geocoding, Open-Meteo, and the given /api/plan, /api/analyze and /api/heatmap handlers. */
 export function installFetch(
   analyze: (call: AnalyzeCall) => Response | Promise<Response> = () => jsonResponse(threeRouteAnalysis()),
   heatmap: (call: HeatmapCall) => Response | Promise<Response> = () => jsonResponse(heatmapResponse()),
+  { plan = () => jsonResponse(planResponse()), weather = (url) => jsonResponse(openMeteoBody(url)) }: Handlers = {},
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     if (url.includes('/api/health')) return jsonResponse({ status: 'ok' })
+    if (url.includes('api.open-meteo.com')) return weather(new URL(url), init?.signal as AbortSignal)
+    if (url.includes('/api/plan')) {
+      return plan({ request: JSON.parse(String(init?.body)), signal: init?.signal as AbortSignal })
+    }
     if (url.includes('/geocode/v6/forward')) return jsonResponse(geocodeBody(new URL(url).searchParams.get('q') ?? ''))
     if (url.includes('/api/analyze')) {
       return analyze({ request: JSON.parse(String(init?.body)), signal: init?.signal as AbortSignal })

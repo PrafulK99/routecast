@@ -31,6 +31,9 @@ CORS_ALLOWED_ORIGINS = env_list("ALLOWED_ORIGINS")
 TRUCK_DURATION_FACTOR = env_number("TRUCK_DURATION_FACTOR", DEFAULT_TRUCK_FACTOR, float)
 MAX_CHECKPOINTS_PER_ROUTE = env_number("MAX_CHECKPOINTS_PER_ROUTE", DEFAULT_MAX_CHECKPOINTS, int)
 WEATHER_CACHE_TTL_S = env_number("WEATHER_CACHE_TTL_S", DEFAULT_WEATHER_CACHE_TTL_S, int)
+# Largest request body. The biggest honest one carries weather for 450 cells x ~200 hours (~4 MB).
+MAX_REQUEST_BYTES = env_number("MAX_REQUEST_BYTES", 5 * 1024 * 1024, int)
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BYTES  # Django refuses a larger body; api.errors answers 413
 
 INSTALLED_APPS = [
     "corsheaders",

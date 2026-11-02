@@ -558,3 +558,81 @@ describe('weather heatmap', () => {
     expect(screen.queryByRole('region', { name: 'Weather heatmap' })).toBeNull()
   })
 })
+
+describe('hardening', () => {
+  const HOUR = 3_600_000
+  const heatmapRegion = () => screen.findByRole('region', { name: 'Weather heatmap' })
+  const startWithFailingHeatmap = async () => {
+    const analyzeCalls: AnalyzeCall[] = []
+    const heatmapCalls: HeatmapCall[] = []
+    const replies = [apiError(502, 'weather_unavailable', 'down'), jsonResponse(heatmapResponse())]
+    await startApp(
+      (call) => {
+        analyzeCalls.push(call)
+        return jsonResponse(threeRouteAnalysis())
+      },
+      (call) => {
+        heatmapCalls.push(call)
+        return replies.shift()!
+      },
+    )
+    await submitTrip()
+    const alert = await within(await heatmapRegion()).findByRole('alert')
+    return { analyzeCalls, heatmapCalls, alert }
+  }
+
+  test('a heatmap Retry after the departure hour has passed uses the next full hour and says so', async () => {
+    const { analyzeCalls, heatmapCalls, alert } = await startWithFailingHeatmap()
+    const departure = analyzeCalls[0].request.departure_time // the next full hour when the form was filled
+    expect(heatmapCalls[0].request.departure_time).toBe(departure) // the first request was on time
+
+    // Two hours and ten minutes later the original departure hour is long gone.
+    vi.setSystemTime(Date.parse(departure) + 2 * HOUR + 10 * 60_000)
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+
+    await screen.findByRole('slider', { name: 'Hours after departure' })
+    expect(heatmapCalls).toHaveLength(2)
+    expect(heatmapCalls[1].request.departure_time).toBe(new Date(Date.parse(departure) + 3 * HOUR).toISOString())
+    expect(heatmapCalls[1].request.points).toEqual(heatmapCalls[0].request.points)
+    expect(heatmapCalls[1].request.load_weight_lb).toBe(heatmapCalls[0].request.load_weight_lb)
+    expect(screen.getByText(/The original departure time has passed, so the heatmap starts at/)).toBeTruthy()
+  })
+
+  test('a heatmap Retry made in time sends the original departure and shows no note', async () => {
+    const { analyzeCalls, heatmapCalls, alert } = await startWithFailingHeatmap()
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+
+    await screen.findByRole('slider', { name: 'Hours after departure' })
+    expect(heatmapCalls[1].request.departure_time).toBe(analyzeCalls[0].request.departure_time)
+    expect(screen.queryByText(/original departure time has passed/)).toBeNull()
+  })
+
+  test('a cancelled request shows nothing: no error, no message, only the newer result', async () => {
+    const second = deferred<Response>()
+    let calls = 0
+    await startApp(({ signal }) => {
+      calls++
+      if (calls === 1) {
+        return new Promise((_, reject) =>
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))),
+        )
+      }
+      return second.promise
+    })
+    await submitTrip()
+    await vi.waitFor(() => expect(calls).toBe(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze routes' })) // cancels the first
+    await vi.waitFor(() => expect(calls).toBe(2))
+    await advance(200)
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(document.querySelector('.error-panel')).toBeNull()
+    expect(screen.queryByText(/Can't reach the server|Something unexpected|Try again/)).toBeNull()
+
+    await act(async () => second.resolve(jsonResponse(threeRouteAnalysis('req-2'))))
+    expect(await cards()).toHaveLength(3)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+})

@@ -134,6 +134,24 @@ describe('place search', () => {
     expect(screen.queryByText('✓ Location chosen')).toBeNull()
   })
 
+  test('after Escape, the next ArrowDown reopens the list at the first suggestion', async () => {
+    setup()
+    type('From', 'Dallas')
+    await settle(SEARCH_DELAY_MS)
+    const options = await suggestionOptions()
+    press('From', 'ArrowDown')
+    press('From', 'ArrowDown') // the second suggestion is highlighted
+    press('From', 'Escape')
+
+    press('From', 'ArrowDown')
+
+    const input = screen.getByRole('combobox', { name: 'From' })
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    expect(input.getAttribute('aria-activedescendant')).toBe(options[0].id)
+    press('From', 'Enter')
+    expect((input as HTMLInputElement).value).toBe('Dallas, Texas, United States')
+  })
+
   test('says so when nothing matches or the search fails', async () => {
     setup()
     type('From', 'zzzzz')

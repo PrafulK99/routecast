@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { describeError } from '../api/errorMessages'
-import type { TimeOptions } from '../format'
+import { type TimeOptions, formatLocalTime } from '../format'
 import { PLAY_INTERVAL_MS, type HeatmapController } from '../heatmap/controller'
 import { type HeatmapData, hourLabel } from '../heatmap/data'
 import { RISK_LEVELS } from '../risk/levels'
@@ -136,6 +136,11 @@ function HeatmapPlayer({ data, controller, loadWeight, time }: PlayerProps) {
           }}
         />
       </div>
+      {data.departureAdjusted && (
+        <p className="heatmap-note" role="status">
+          The original departure time has passed, so the heatmap starts at {formatLocalTime(data.startHour, time)} instead.
+        </p>
+      )}
       <p className="heatmap-label">{label}</p>
       <ul className="heatmap-legend" aria-label="Heatmap colors">
         {RISK_LEVELS.map((level) => (

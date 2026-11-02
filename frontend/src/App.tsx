@@ -11,7 +11,8 @@ import { RecommendationBanner } from './components/RecommendationBanner'
 import { RouteCards, RouteCardsSkeleton } from './components/RouteCards'
 import { TripForm } from './components/TripForm'
 import { HeatmapController } from './heatmap/controller'
-import { heatmapToGeoJson } from './heatmap/data'
+import { selectHeatmap } from './heatmap/data'
+import { heatmapDeparture } from './heatmap/departure'
 import { useAfterDelay } from './hooks'
 
 // The map library is large; load it after the form is already usable.
@@ -51,17 +52,21 @@ export default function App() {
   const noPoints = analysis !== undefined && analysis.corridor_points.length === 0
   const heatmap = useQuery({
     queryKey: ['heatmap', analysis?.meta.request_id],
-    queryFn: ({ signal }) =>
-      fetchHeatmap(
+    queryFn: async ({ signal }) => {
+      // A Retry long after the analysis would be refused for a departure that has passed.
+      const { departure, adjusted } = heatmapDeparture(submission!.request.departure_time, new Date())
+      const response = await fetchHeatmap(
         {
           points: analysis!.corridor_points,
-          departure_time: submission!.request.departure_time,
+          departure_time: departure,
           load_weight_lb: submission!.request.load_weight_lb,
         },
         signal,
-      ),
+      )
+      return { response, adjusted }
+    },
     enabled: analysis !== undefined && submission !== null && !noPoints,
-    select: heatmapToGeoJson,
+    select: selectHeatmap,
     retry: false,
     staleTime: Infinity,
   })

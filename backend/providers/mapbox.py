@@ -15,6 +15,7 @@ from domain.models import Route
 
 from .constants import (
     MAPBOX_DIRECTIONS_URL,
+    DISTANCE_LIMIT_MESSAGE,
     MAPBOX_TIMEOUT_S,
     MAX_ROUTES,
     METERS_PER_MILE,
@@ -237,6 +238,8 @@ class MapboxRoutingProvider:
                 continue
             if body.get("code") in NO_ROUTE_CODES:
                 return body  # parse_directions turns this into NoRouteError
+            if status == 422 and DISTANCE_LIMIT_MESSAGE in str(body.get("message", "")).lower():
+                return {"code": "NoRoute", "routes": []}  # too far to route: no drivable route
             if status != 200:
                 raise RoutingUnavailableError(f"Mapbox rejected the request (HTTP {status}).")
             return body

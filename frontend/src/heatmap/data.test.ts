@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { heatmapSample } from '../api/fixtures/check'
 import type { HeatmapResponse } from '../api/types'
-import { heatmapToGeoJson, levelProperty } from './data'
+import { heatmapToGeoJson, levelProperty, selectHeatmap } from './data'
 
 describe('heatmapToGeoJson', () => {
   const data = heatmapToGeoJson(heatmapSample)
@@ -55,5 +55,17 @@ describe('heatmapToGeoJson', () => {
   test('levelProperty names hours h0 to h48', () => {
     expect(levelProperty(0)).toBe('h0')
     expect(levelProperty(48)).toBe('h48')
+  })
+})
+
+describe('selectHeatmap', () => {
+  test('parses the response and carries the adjusted flag', () => {
+    const onTime = selectHeatmap({ response: heatmapSample, adjusted: false })
+    const moved = selectHeatmap({ response: heatmapSample, adjusted: true })
+
+    expect(onTime.departureAdjusted).toBe(false)
+    expect(moved.departureAdjusted).toBe(true)
+    expect(moved.collection).toEqual(heatmapToGeoJson(heatmapSample).collection)
+    expect(heatmapToGeoJson(heatmapSample).departureAdjusted).toBe(false)
   })
 })
